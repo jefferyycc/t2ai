@@ -1,72 +1,139 @@
-import { generateCoachingCopy } from "@/lib/ai";
-import { OnboardingDraft } from "@/lib/types";
+import { generateCoachingCopy, generateStructuredData } from "@/lib/ai";
+import {
+  ExperienceLevel,
+  Limitation,
+  OnboardingDraft,
+  WorkoutGoal,
+} from "@/lib/types";
 
-const goalMap = [
-  { match: ["fat loss", "lose fat", "weight loss"], value: "fat_loss" as const },
-  { match: ["hypertrophy", "muscle", "build muscle"], value: "hypertrophy" as const },
-  { match: ["strength", "stronger"], value: "strength" as const },
-  { match: ["general fitness", "fitness", "health"], value: "general_fitness" as const },
+type ExtractedOnboardingFields = {
+  workoutGoal: WorkoutGoal | null;
+  workoutDaysPerWeek: number | null;
+  workoutDurationMinutes: number | null;
+  experienceLevel: ExperienceLevel | null;
+  limitations: Limitation[] | null;
+};
+
+const validGoals: WorkoutGoal[] = [
+  "fat_loss",
+  "hypertrophy",
+  "strength",
+  "general_fitness",
 ];
 
-const experienceMap = [
-  { match: ["beginner", "new"], value: "beginner" as const },
-  { match: ["intermediate"], value: "intermediate" as const },
-  { match: ["advanced"], value: "advanced" as const },
+const validExperienceLevels: ExperienceLevel[] = [
+  "beginner",
+  "intermediate",
+  "advanced",
 ];
 
-const limitationsMap = [
-  { match: ["knee", "knees"], value: "knees" as const },
-  { match: ["shoulder", "shoulders"], value: "shoulders" as const },
-  { match: ["lower back", "back"], value: "lower_back" as const },
-  { match: ["wrist", "wrists"], value: "wrists" as const },
+const validLimitations: Limitation[] = [
+  "knees",
+  "shoulders",
+  "lower_back",
+  "wrists",
+  "none",
 ];
 
-export function parseOnboardingMessage(
+function isWorkoutGoal(value: unknown): value is WorkoutGoal {
+  return typeof value === "string" && validGoals.includes(value as WorkoutGoal);
+}
+
+function isExperienceLevel(value: unknown): value is ExperienceLevel {
+  return (
+    typeof value === "string" &&
+    validExperienceLevels.includes(value as ExperienceLevel)
+  );
+}
+
+function sanitizeLimitations(value: unknown) {
+  if (!Array.isArray(value)) return null;
+
+  const next = value.filter(
+    (item): item is Limitation =>
+      typeof item === "string" && validLimitations.includes(item as Limitation),
+  );
+
+  return next.length > 0 ? Array.from(new Set(next)) : null;
+}
+
+function sanitizeExtractedFields(value: ExtractedOnboardingFields) {
+  return {
+    workoutGoal: isWorkoutGoal(value.workoutGoal) ? value.workoutGoal : null,
+    workoutDaysPerWeek:
+      typeof value.workoutDaysPerWeek === "number" &&
+      Number.isInteger(value.workoutDaysPerWeek) &&
+      value.workoutDaysPerWeek >= 2 &&
+      value.workoutDaysPerWeek <= 6
+        ? value.workoutDaysPerWeek
+        : null,
+    workoutDurationMinutes:
+      typeof value.workoutDurationMinutes === "number" &&
+      Number.isFinite(value.workoutDurationMinutes) &&
+      value.workoutDurationMinutes > 0
+        ? value.workoutDurationMinutes
+        : null,
+    experienceLevel: isExperienceLevel(value.experienceLevel)
+      ? value.experienceLevel
+      : null,
+    limitations: sanitizeLimitations(value.limitations),
+  };
+}
+
+export async function parseOnboardingMessage(
   message: string,
   currentDraft: OnboardingDraft,
-): OnboardingDraft {
+): Promise<OnboardingDraft> {
   const nextDraft: OnboardingDraft = {
     ...currentDraft,
     limitations: currentDraft.limitations ?? [],
   };
 
-  const normalized = message.toLowerCase();
+  const extracted = await generateStructuredData<ExtractedOnboardingFields>({
+    system: `You extract onboarding fields for a fitness planning app.
 
-  for (const goal of goalMap) {
-    if (goal.match.some((item) => normalized.includes(item))) {
-      nextDraft.workoutGoal = goal.value;
-    }
+Return JSON only with exactly these keys:
+- workoutGoal: one of "fat_loss", "hypertrophy", "strength", "general_fitness", or null
+- workoutDaysPerWeek: integer 2 through 6, or null
+- workoutDurationMinutes: integer minutes, or null
+- experienceLevel: one of "beginner", "intermediate", "advanced", or null
+- limitations: array containing any of "knees", "shoulders", "lower_back", "wrists", "none", or null
+
+Rules:
+- Use only information clearly stated in the latest user message.
+- Do not invent missing information.
+- If the user says they have no injuries or limitations, return ["none"].
+- If the user provides a duration like 50 minutes, return 50.
+- If a field is not clearly present in the latest message, return null for that field.`,
+    prompt: `Current onboarding draft:
+${JSON.stringify(currentDraft)}
+
+Latest user message:
+${message}
+
+Return JSON only.`,
+  });
+
+  const sanitized = sanitizeExtractedFields(extracted);
+
+  if (sanitized.workoutGoal) {
+    nextDraft.workoutGoal = sanitized.workoutGoal;
   }
 
-  const daysMatch = normalized.match(/([2-6])\s*(days|day)/);
-  if (daysMatch) {
-    nextDraft.workoutDaysPerWeek = Number(daysMatch[1]);
+  if (sanitized.workoutDaysPerWeek) {
+    nextDraft.workoutDaysPerWeek = sanitized.workoutDaysPerWeek;
   }
 
-  const durationMatch = normalized.match(/\b(30|45|60|75)\b/);
-  if (durationMatch) {
-    nextDraft.workoutDurationMinutes = Number(durationMatch[1]);
+  if (sanitized.workoutDurationMinutes) {
+    nextDraft.workoutDurationMinutes = sanitized.workoutDurationMinutes;
   }
 
-  for (const experience of experienceMap) {
-    if (experience.match.some((item) => normalized.includes(item))) {
-      nextDraft.experienceLevel = experience.value;
-    }
+  if (sanitized.experienceLevel) {
+    nextDraft.experienceLevel = sanitized.experienceLevel;
   }
 
-  const foundLimitations = limitationsMap
-    .filter((entry) => entry.match.some((item) => normalized.includes(item)))
-    .map((entry) => entry.value);
-
-  if (normalized.includes("none") || normalized.includes("no injuries")) {
-    nextDraft.limitations = ["none"];
-  } else if (foundLimitations.length > 0) {
-    nextDraft.limitations = Array.from(
-      new Set([
-        ...nextDraft.limitations.filter((item) => item !== "none"),
-        ...foundLimitations,
-      ]),
-    );
+  if (sanitized.limitations) {
+    nextDraft.limitations = sanitized.limitations;
   }
 
   return nextDraft;
@@ -76,26 +143,17 @@ export function getMissingField(draft: OnboardingDraft) {
   if (!draft.workoutGoal) return "workoutGoal" as const;
   if (!draft.workoutDaysPerWeek) return "workoutDaysPerWeek" as const;
   if (!draft.workoutDurationMinutes) return "workoutDurationMinutes" as const;
-  if (!draft.experienceLevel) return "experienceLevel" as const;
   if (!draft.limitations || draft.limitations.length === 0) return "limitations" as const;
   return null;
 }
 
-function missingFieldPrompt(field: ReturnType<typeof getMissingField>) {
-  switch (field) {
-    case "workoutGoal":
-      return "What is your main workout goal: fat loss, hypertrophy, strength, or general fitness?";
-    case "workoutDaysPerWeek":
-      return "How many days per week do you want to train? Choose 2, 3, 4, 5, or 6.";
-    case "workoutDurationMinutes":
-      return "How long should each workout be? Choose 30, 45, 60, or 75 minutes.";
-    case "experienceLevel":
-      return "What is your experience level: beginner, intermediate, or advanced?";
-    case "limitations":
-      return "Do you have movement limitations or injuries to avoid around the knees, shoulders, lower back, wrists, or none?";
-    default:
-      return "I have enough information to build your first plan.";
-  }
+export async function buildInitialOnboardingMessage() {
+  return generateCoachingCopy({
+    system:
+      "You are a concise AI fitness coach welcoming a new user. Ask for the user's workout goal, training days per week, workout duration for each session, experience level, and injuries or limitations to avoid. Keep it under 35 words.",
+    prompt:
+      "Write the first onboarding message for a personalized fitness planning chat.",
+  });
 }
 
 export async function buildOnboardingReply(draft: OnboardingDraft) {
@@ -112,8 +170,6 @@ duration: ${draft.workoutDurationMinutes}
 experience: ${draft.experienceLevel}
 limitations: ${draft.limitations.join(", ")}
 Write a short friendly confirmation in under 55 words.`,
-      fallback:
-        "I have your goal, weekly training frequency, workout duration, experience level, and limitations. Your first weekly workout plan is ready.",
     });
   }
 
@@ -121,6 +177,5 @@ Write a short friendly confirmation in under 55 words.`,
     system:
       "You are a concise fitness onboarding coach. Ask for the next missing detail only.",
     prompt: `The current draft is incomplete. Ask only for this missing field: ${missingField}. Keep it under 30 words.`,
-    fallback: missingFieldPrompt(missingField),
   });
 }
