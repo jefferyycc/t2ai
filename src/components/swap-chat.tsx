@@ -125,7 +125,14 @@ export function SwapChat({ day }: SwapChatProps) {
                 onClick={() => setSelectedExerciseId(exercise.id)}
               >
                 <div>
-                  <p className="exercise-name">{exercise.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="exercise-name">{exercise.name}</p>
+                    {exercise.isUpdated && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800 animate-pulse">
+                        ADJUSTED
+                      </span>
+                    )}
+                  </div>
                   <p className="muted-copy">
                     {exercise.sets} sets x {exercise.reps}
                   </p>

@@ -75,6 +75,7 @@ export type WorkoutExercise = {
   reps: string;
   restSeconds: number;
   notes?: string;
+  isUpdated?: boolean;
 };
 
 export type WorkoutDay = {

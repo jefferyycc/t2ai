@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { WorkoutPlan } from "@/lib/types";
 
@@ -28,6 +28,30 @@ export function PlanSummaryChat({}: PlanSummaryChatProps) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    // Load from localStorage only once on mount
+    const saved = localStorage.getItem("plan_adjustment_messages");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+        }
+      } catch (e) {
+        console.error("Failed to parse saved messages", e);
+      }
+    }
+  }, []);
+
+  // Sync with localStorage on changes, but only after mounting
+  useEffect(() => {
+    if (isMounted && messages.length > 0) {
+      localStorage.setItem("plan_adjustment_messages", JSON.stringify(messages));
+    }
+  }, [messages, isMounted]);
 
   async function requestAdjustment() {
     if (!input.trim()) return;
@@ -64,9 +88,11 @@ export function PlanSummaryChat({}: PlanSummaryChatProps) {
           { role: "assistant", text: data.assistantMessage },
           { role: "assistant", text: "✅ Your plan has been adjusted. Check the breakdown above!" }
         ]);
-        // router.refresh() tells Next.js to fetch the latest server data (the new plan) 
-        // without losing the current client component state (the chat history).
-        router.refresh(); 
+        
+        // Use a slight delay before reload to let user see the checkmark message
+        setTimeout(() => {
+          window.location.reload();
+        }, 800);
       } else {
         setMessages((current) => [
           ...current,
@@ -86,7 +112,7 @@ export function PlanSummaryChat({}: PlanSummaryChatProps) {
       <h2 className="section-title">Modify your plan</h2>
       
       <div className="chat-thread compact-thread">
-        {messages.map((message, index) => (
+        {isMounted && messages.map((message, index) => (
           <div
             className={`chat-bubble ${message.role === "user" ? "chat-bubble-user" : ""}`}
             key={`${message.role}-${index}`}

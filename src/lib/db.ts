@@ -148,6 +148,7 @@ export function applyExerciseSwap(input: {
           category: nextExercise.category,
           sets: input.sets ?? exercise.sets,
           reps: input.reps ?? exercise.reps,
+          isUpdated: true,
         };
       }),
     };

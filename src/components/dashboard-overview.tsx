@@ -59,10 +59,19 @@ export function DashboardOverview({
           {plan.summary}
         </div>
         <ul className="stack-list">
-          {today.exercises.slice(0, 4).map((exercise) => (
+          {today.exercises.map((exercise) => (
             <li key={exercise.id}>
-              <span>{exercise.name}</span>
-              <span>
+              <div className="flex items-center gap-2">
+                <span className={exercise.isUpdated ? "text-green-600 font-medium" : ""}>
+                  {exercise.name}
+                </span>
+                {exercise.isUpdated && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 animate-pulse">
+                    ADJUSTED
+                  </span>
+                )}
+              </div>
+              <span className={exercise.isUpdated ? "text-green-600 font-medium" : ""}>
                 {exercise.sets} x {exercise.reps}
               </span>
             </li>

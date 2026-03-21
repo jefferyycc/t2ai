@@ -68,11 +68,13 @@ Provide a very brief, friendly assistantMessage (max 3 short sentences) confirmi
       schema: adjustmentSchema,
     });
 
+    console.log('LLM Adjustment Decision:', adjustment);
+
     if (adjustment.hasAdjustment && adjustment.dayId && adjustment.workoutExerciseId && adjustment.newExerciseId) {
       const nextEx = seedExercises.find(e => e.id === adjustment.newExerciseId);
       const newName = nextEx ? `${nextEx.name} (${adjustment.targetMuscle || 'Muscle Group'})` : undefined;
 
-      applyExerciseSwap({
+      const result = applyExerciseSwap({
         dayId: adjustment.dayId,
         workoutExerciseId: adjustment.workoutExerciseId,
         newExerciseId: adjustment.newExerciseId,
@@ -81,6 +83,8 @@ Provide a very brief, friendly assistantMessage (max 3 short sentences) confirmi
         sets: adjustment.sets ?? undefined,
         reps: adjustment.reps ?? undefined,
       });
+
+      console.log('Swap Result:', result ? 'Success' : 'Failed (ID mismatch)');
 
       return NextResponse.json({
         assistantMessage: adjustment.assistantMessage,
