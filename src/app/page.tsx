@@ -1,65 +1,221 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+
+const workoutGoals = ["Fat loss", "Hypertrophy", "Strength", "General fitness"];
+const workoutDays = ["2", "3", "4", "5", "6"];
+const equipmentOptions = [
+  "Bodyweight",
+  "Dumbbells",
+  "Barbell",
+  "Gym machines",
+  "Resistance bands",
+];
+const durations = ["30", "45", "60", "75"];
+const experienceLevels = ["Beginner", "Intermediate", "Advanced"];
+const limitations = [
+  "Knees",
+  "Shoulders",
+  "Lower back",
+  "Wrists",
+  "None",
+];
+
+const todayWorkout = [
+  "Goblet squat: 4 x 10",
+  "Romanian deadlift: 3 x 8",
+  "Incline dumbbell press: 4 x 10",
+  "Chest-supported row: 3 x 12",
+  "Dead bug: 3 x 12 each side",
+];
+
+const weeklySplit = [
+  { day: "Mon", focus: "Lower body + core" },
+  { day: "Tue", focus: "Upper push + pull" },
+  { day: "Thu", focus: "Lower body strength" },
+  { day: "Sat", focus: "Upper hypertrophy" },
+];
+
+const formFeedback = [
+  "Squat: knees tracking better, depth still inconsistent on reps 7-9.",
+  "RDL: hinge pattern looks solid, keep bar closer to the body.",
+  "Push-up: shoulder position improved after reducing range slightly.",
+];
+
+const progressSummary = [
+  "Workout completion: 87% this month",
+  "Average session time: 48 minutes",
+  "Most improved lift: Romanian deadlift +15 lb",
+];
 
 export default function Home() {
+  const [selectedEquipment, setSelectedEquipment] = useState<string[]>([
+    "Dumbbells",
+    "Gym machines",
+  ]);
+
+  function toggleEquipment(option: string) {
+    setSelectedEquipment((current) =>
+      current.includes(option)
+        ? current.filter((item) => item !== option)
+        : [...current, option],
+    );
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="page-shell">
+      <section className="content-wrap">
+        <div className="hero-copy">
+          <p className="label">Personalized Fitness Web App</p>
+          <h1 className="hero-title">
+            Generate a workout plan, upload a set video, and improve over time.
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="hero-description">
+            Generate a personalized workout plan, upload a set video, get form
+            feedback, and update your plan over time.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="builder-panel">
+          <div className="panel-header">
+            <div>
+              <p className="chat-heading">Plan setup</p>
+              <p className="chat-subheading">
+                Set your goal, training schedule, equipment, and limitations.
+              </p>
+            </div>
+            <button className="primary-button" type="button">
+              Generate plan
+            </button>
+          </div>
+
+          <div className="form-grid">
+            <label className="field">
+              <span className="field-label">Workout goal</span>
+              <select className="field-input" defaultValue="Hypertrophy">
+                {workoutGoals.map((goal) => (
+                  <option key={goal} value={goal}>
+                    {goal}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="field">
+              <span className="field-label">Days per week</span>
+              <select className="field-input" defaultValue="4">
+                {workoutDays.map((day) => (
+                  <option key={day} value={day}>
+                    {day}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="field">
+              <span className="field-label">Workout duration</span>
+              <select className="field-input" defaultValue="45">
+                {durations.map((duration) => (
+                  <option key={duration} value={duration}>
+                    {duration} min
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="field">
+              <span className="field-label">Experience level</span>
+              <select className="field-input" defaultValue="Intermediate">
+                {experienceLevels.map((level) => (
+                  <option key={level} value={level}>
+                    {level}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="field">
+              <span className="field-label">Movement limitations</span>
+              <select className="field-input" defaultValue="None">
+                {limitations.map((limitation) => (
+                  <option key={limitation} value={limitation}>
+                    {limitation}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="field">
+              <span className="field-label">Optional body photo</span>
+              <input
+                className="field-input"
+                type="file"
+                accept="image/*"
+              />
+            </label>
+          </div>
+
+          <div className="equipment-group">
+            <p className="field-label">Available equipment</p>
+            <div className="chip-row">
+              {equipmentOptions.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  className={`chip ${selectedEquipment.includes(option) ? "chip-active" : ""}`}
+                  onClick={() => toggleEquipment(option)}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-      </main>
-    </div>
+
+        <div className="dashboard-grid">
+          <section className="dashboard-card">
+            <p className="section-title">Today&apos;s workout</p>
+            <ul className="simple-list">
+              {todayWorkout.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+            <button className="secondary-button" type="button">
+              Open workout day
+            </button>
+          </section>
+
+          <section className="dashboard-card">
+            <p className="section-title">Weekly split</p>
+            <ul className="split-list">
+              {weeklySplit.map((item) => (
+                <li key={item.day}>
+                  <span>{item.day}</span>
+                  <span>{item.focus}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="dashboard-card">
+            <p className="section-title">Recent form feedback</p>
+            <ul className="simple-list">
+              {formFeedback.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="dashboard-card">
+            <p className="section-title">Progress summary</p>
+            <ul className="simple-list">
+              {progressSummary.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </section>
+        </div>
+      </section>
+    </main>
   );
 }
