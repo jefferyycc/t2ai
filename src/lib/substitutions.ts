@@ -54,11 +54,6 @@ export async function buildSwapReply(
   suggestions: SwapSuggestion[],
   message: string,
 ) {
-  const fallback =
-    suggestions.length > 0
-      ? `I can swap ${exerciseName}. Based on your equipment and limitations, ${suggestions[0].name} is the best replacement. If that looks good, accept the swap.`
-      : `I could not find a safer or more suitable substitute for ${exerciseName} with the current equipment and limitations.`;
-
   return generateCoachingCopy({
     system:
       "You are a concise fitness coach. Explain substitution suggestions without medical language and keep it under 60 words.",
@@ -69,6 +64,5 @@ Suggestions: ${suggestions
       .map((item) => `${item.name}: ${item.reason}`)
       .join("; ")}
 Write a short reply.`,
-    fallback,
   });
 }

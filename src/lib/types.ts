@@ -132,7 +132,6 @@ export type OnboardingResponse = {
     | "workoutGoal"
     | "workoutDaysPerWeek"
     | "workoutDurationMinutes"
-    | "experienceLevel"
     | "limitations"
     | null;
   profileSaved: boolean;
