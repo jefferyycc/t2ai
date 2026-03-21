@@ -13,6 +13,7 @@ export type EquipmentType =
   | "rack";
 export type AnalysisExerciseType = "squat" | "deadlift";
 export type AnalysisStatus = "queued" | "processing" | "complete" | "failed";
+export type AnalysisMethod = "heuristic" | "fallback";
 
 export interface HevySetRow {
   title: string;
@@ -198,6 +199,9 @@ export interface WorkoutSession {
   completedAt: string;
   summary: string;
   overallRpe?: number;
+  analysisId?: string;
+  analysisSummary?: string;
+  analysisFormScore?: number;
 }
 
 export interface SetLog {
@@ -222,14 +226,21 @@ export interface VideoAnalysis {
   id: string;
   userId: string;
   videoId: string;
+  workoutDayId: string;
   exerciseType: AnalysisExerciseType;
   status: AnalysisStatus;
+  method: AnalysisMethod;
   repCount: number;
   formScore: number;
   confidenceScore: number;
   feedbackBullets: string[];
   nextSetRecommendation: string;
   coachSummary: string;
+  movementSignals: {
+    depth: string;
+    torsoControl: string;
+    kneeTracking: string;
+  };
   createdAt: string;
 }
 
@@ -292,6 +303,7 @@ export interface SessionSaveInput {
   workoutDayId: string;
   summary: string;
   overallRpe?: number;
+  analysisId?: string;
   setLogs: Array<{
     workoutExerciseId: string;
     weightKg: number;
@@ -302,6 +314,7 @@ export interface SessionSaveInput {
 
 export interface AnalysisCreateInput {
   videoId: string;
+  workoutDayId: string;
   exerciseType: AnalysisExerciseType;
 }
 

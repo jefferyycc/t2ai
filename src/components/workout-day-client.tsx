@@ -29,9 +29,18 @@ export function WorkoutDayClient({
   const [swapResponse, setSwapResponse] = useState("");
   const [analysis, setAnalysis] = useState<VideoAnalysis | null>(null);
   const [analysisStatus, setAnalysisStatus] = useState("");
+  const [tips, setTips] = useState<string[]>([]);
   const [sessionMessage, setSessionMessage] = useState("");
   const [logging, setLogging] = useState(false);
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [exerciseType, setExerciseType] = useState<"squat" | "deadlift">("squat");
+
+  async function loadTips() {
+    if (tips.length > 0) return;
+    const response = await fetch("/api/analysis/tips");
+    const data = await response.json();
+    setTips(data.tips ?? []);
+  }
 
   async function handleSwap() {
     setSwapResponse("");
@@ -83,7 +92,8 @@ export function WorkoutDayClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         videoId: uploadData.upload.id,
-        exerciseType: "squat",
+        workoutDayId: day.id,
+        exerciseType,
       }),
     });
     const analysisData = await analysisResponse.json();
@@ -103,8 +113,11 @@ export function WorkoutDayClient({
 
     const payload = {
       workoutDayId: day.id,
-      summary: `${day.label} completed with ${exercises.length} tracked exercises.`,
+      summary: analysis
+        ? `${day.label} completed with ${exercises.length} tracked exercises and ${analysis.exerciseType} video feedback.`
+        : `${day.label} completed with ${exercises.length} tracked exercises.`,
       overallRpe: 7.5,
+      analysisId: analysis?.id,
       setLogs: exercises.slice(0, 3).map((exercise) => ({
         workoutExerciseId: exercise.id,
         weightKg: 40,
@@ -127,7 +140,11 @@ export function WorkoutDayClient({
     }
 
     setSessions((current) => [data.session, ...current]);
-    setSessionMessage("Session saved. Head back to the dashboard to refresh the plan.");
+    setSessionMessage(
+      analysis
+        ? "Session saved with the latest movement analysis attached."
+        : "Session saved. Head back to the dashboard to refresh the plan.",
+    );
     setLogging(false);
   }
 
@@ -199,9 +216,36 @@ export function WorkoutDayClient({
           <div className="dashboard-card">
             <p className="section-title">Video analysis workflow</p>
             <p className="body-copy">
-              MVP supports side-view squat or deadlift clips only. Analysis is
-              mocked deterministically for hackathon stability.
+              MVP supports side-view squat or deadlift clips only. T2AI first
+              tries a lightweight heuristic read from upload metadata cues and
+              falls back to a conservative demo analysis when confidence is weak.
             </p>
+            <div className="button-row">
+              <button
+                className={`secondary-button inline-button ${exerciseType === "squat" ? "selected-pill" : ""}`}
+                type="button"
+                onClick={() => setExerciseType("squat")}
+              >
+                Squat
+              </button>
+              <button
+                className={`secondary-button inline-button ${exerciseType === "deadlift" ? "selected-pill" : ""}`}
+                type="button"
+                onClick={() => setExerciseType("deadlift")}
+              >
+                Deadlift
+              </button>
+              <button className="secondary-button inline-button" type="button" onClick={loadTips}>
+                Recording tips
+              </button>
+            </div>
+            {tips.length > 0 ? (
+              <ul className="simple-list">
+                {tips.map((tip) => (
+                  <li key={tip}>{tip}</li>
+                ))}
+              </ul>
+            ) : null}
             <input
               className="field-input"
               type="file"
@@ -215,15 +259,35 @@ export function WorkoutDayClient({
             {analysis ? (
               <div className="analysis-card">
                 <p className="subtle-copy">
-                  Rep count {analysis.repCount} • Form score {analysis.formScore}
-                  {" "}• Confidence {(analysis.confidenceScore * 100).toFixed(0)}%
+                  {analysis.exerciseType} • method {analysis.method} • rep count {analysis.repCount} • form score{" "}
+                  {analysis.formScore} • confidence{" "}
+                  {(analysis.confidenceScore * 100).toFixed(0)}%
                 </p>
+                <div className="signal-grid">
+                  <div className="signal-card">
+                    <span className="metric-label">Depth</span>
+                    <strong>{analysis.movementSignals.depth}</strong>
+                  </div>
+                  <div className="signal-card">
+                    <span className="metric-label">Torso</span>
+                    <strong>{analysis.movementSignals.torsoControl}</strong>
+                  </div>
+                  <div className="signal-card">
+                    <span className="metric-label">Tracking</span>
+                    <strong>{analysis.movementSignals.kneeTracking}</strong>
+                  </div>
+                </div>
                 <ul className="simple-list">
                   {analysis.feedbackBullets.map((bullet) => (
                     <li key={bullet}>{bullet}</li>
                   ))}
                 </ul>
-                <p className="body-copy">{analysis.nextSetRecommendation}</p>
+                <p className="body-copy">{analysis.coachSummary}</p>
+                <p className="body-copy emphasis-copy">{analysis.nextSetRecommendation}</p>
+                <p className="body-copy analysis-footnote">
+                  Save the session to attach this analysis to your workout history and
+                  dashboard recap.
+                </p>
               </div>
             ) : null}
           </div>
@@ -247,10 +311,19 @@ export function WorkoutDayClient({
               <ul className="simple-list">
                 {sessions.map((session) => (
                   <li key={session.id}>
-                    {session.summary}{" "}
-                    <span className="subtle-copy">
-                      {new Date(session.completedAt).toLocaleString()}
-                    </span>
+                    <div className="session-history-item">
+                      <span>
+                        {session.summary}{" "}
+                        <span className="subtle-copy">
+                          {new Date(session.completedAt).toLocaleString()}
+                        </span>
+                      </span>
+                      {session.analysisSummary ? (
+                        <span className="session-analysis-tag">
+                          Form {session.analysisFormScore}/100 • {session.analysisSummary}
+                        </span>
+                      ) : null}
+                    </div>
                   </li>
                 ))}
               </ul>

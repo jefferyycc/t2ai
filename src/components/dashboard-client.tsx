@@ -68,6 +68,45 @@ export function DashboardClient({ initialSnapshot }: DashboardClientProps) {
         {message ? <p className="success-text">{message}</p> : null}
 
         <section className="dashboard-grid">
+          <div className="dashboard-card dashboard-card-highlight">
+            <p className="section-title">Movement analytics</p>
+            {snapshot.recentAnalyses[0] ? (
+              <div className="analysis-card compact-analysis-card">
+                <p className="subtle-copy">
+                  Latest check: {snapshot.recentAnalyses[0].exerciseType} •{" "}
+                  {snapshot.recentAnalyses[0].method} • confidence{" "}
+                  {(snapshot.recentAnalyses[0].confidenceScore * 100).toFixed(0)}%
+                </p>
+                <div className="signal-grid">
+                  <div className="signal-card">
+                    <span className="metric-label">Form score</span>
+                    <strong>{snapshot.recentAnalyses[0].formScore}/100</strong>
+                  </div>
+                  <div className="signal-card">
+                    <span className="metric-label">Depth</span>
+                    <strong>{snapshot.recentAnalyses[0].movementSignals.depth}</strong>
+                  </div>
+                  <div className="signal-card">
+                    <span className="metric-label">Next set</span>
+                    <strong>{snapshot.recentAnalyses[0].nextSetRecommendation}</strong>
+                  </div>
+                </div>
+                <p className="body-copy">{snapshot.recentAnalyses[0].coachSummary}</p>
+                <Link
+                  className="secondary-button inline-button"
+                  href={`/workout/${snapshot.recentAnalyses[0].workoutDayId}`}
+                >
+                  Reopen workout day
+                </Link>
+              </div>
+            ) : (
+              <p className="empty-text">
+                No movement analysis yet. Upload a side-view squat or deadlift
+                clip from a workout day to populate this module.
+              </p>
+            )}
+          </div>
+
           <div className="dashboard-card">
             <p className="section-title">Current plan</p>
             {snapshot.planBundle ? (
@@ -130,10 +169,19 @@ export function DashboardClient({ initialSnapshot }: DashboardClientProps) {
               <ul className="simple-list">
                 {snapshot.recentSessions.map((session) => (
                   <li key={session.id}>
-                    {session.summary}{" "}
-                    <span className="subtle-copy">
-                      {new Date(session.completedAt).toLocaleDateString()}
-                    </span>
+                    <div className="session-history-item">
+                      <span>
+                        {session.summary}{" "}
+                        <span className="subtle-copy">
+                          {new Date(session.completedAt).toLocaleDateString()}
+                        </span>
+                      </span>
+                      {session.analysisSummary ? (
+                        <span className="session-analysis-tag">
+                          Form {session.analysisFormScore}/100 • {session.analysisSummary}
+                        </span>
+                      ) : null}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -150,7 +198,24 @@ export function DashboardClient({ initialSnapshot }: DashboardClientProps) {
               <ul className="simple-list">
                 {snapshot.recentAnalyses.map((analysis) => (
                   <li key={analysis.id}>
-                    {analysis.exerciseType} form score {analysis.formScore} / 100
+                    <div className="session-history-item">
+                      <span>
+                        <strong>{analysis.exerciseType}</strong> • {analysis.method} • form
+                        score {analysis.formScore} / 100 • confidence{" "}
+                        {(analysis.confidenceScore * 100).toFixed(0)}%
+                      </span>
+                      <Link
+                        className="card-link"
+                        href={`/workout/${analysis.workoutDayId}`}
+                      >
+                        Open workout
+                      </Link>
+                    </div>
+                    <div className="analysis-summary-block">
+                      <span>{analysis.movementSignals.depth}</span>
+                      <span>{analysis.movementSignals.torsoControl}</span>
+                      <span>{analysis.nextSetRecommendation}</span>
+                    </div>
                   </li>
                 ))}
               </ul>

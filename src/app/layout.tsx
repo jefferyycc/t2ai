@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Zero to Agent",
+  title: "T2AI | Train Train",
   description:
-    "Hackathon landing page concept for a Gemini-powered chatbot built on Vercel.",
+    "A personalized fitness MVP built with Next.js, Vercel, Gemini, and real Hevy + Oura history.",
 };
 
 export default function RootLayout({

@@ -112,8 +112,9 @@ export function HomeClient({ initialSnapshot }: HomeClientProps) {
           </h1>
           <p className="hero-description">
             T2AI uses imported Hevy and Oura history to build a personalized
-            plan, adjust exercises through chat, mock video feedback, and guide
-            your next block without drifting into medical advice.
+            plan, adjust exercises through chat, add conservative movement
+            analytics for squat and deadlift clips, and guide your next block
+            without drifting into medical advice.
           </p>
         </div>
 
@@ -312,7 +313,10 @@ export function HomeClient({ initialSnapshot }: HomeClientProps) {
                 )}
               </li>
               <li>Apple Health is unavailable in this MVP.</li>
-              <li>Video analysis remains mocked and deterministic.</li>
+              <li>
+                Video analysis uses a lightweight heuristic layer with a
+                conservative deterministic fallback.
+              </li>
             </ul>
 
             <div className="metric-grid">
@@ -376,7 +380,7 @@ export function HomeClient({ initialSnapshot }: HomeClientProps) {
               <li>Chat onboarding and weekly plan generation</li>
               <li>Workout-day detail pages with sets, reps, and rest</li>
               <li>Chat-based exercise swaps with valid substitutions</li>
-              <li>Mocked squat / deadlift video analysis</li>
+              <li>Squat / deadlift movement analytics with dashboard history</li>
               <li>Session logging and plan refresh</li>
             </ul>
           </div>

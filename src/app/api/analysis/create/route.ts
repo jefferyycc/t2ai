@@ -7,9 +7,9 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Partial<AnalysisCreateInput>;
 
-    if (!body.videoId || !body.exerciseType) {
+    if (!body.videoId || !body.workoutDayId || !body.exerciseType) {
       return NextResponse.json(
-        { error: "videoId and exerciseType are required." },
+        { error: "videoId, workoutDayId, and exerciseType are required." },
         { status: 400 },
       );
     }
@@ -23,6 +23,7 @@ export async function POST(request: Request) {
 
     const analysis = createAnalysis({
       videoId: body.videoId,
+      workoutDayId: body.workoutDayId,
       exerciseType: body.exerciseType,
     });
 

@@ -154,6 +154,12 @@ export function getExercisesForDay(dayId: string) {
     .sort((a, b) => a.order - b.order);
 }
 
+export function getSessionsForDay(dayId: string) {
+  return store()
+    .sessions.filter((item) => item.workoutDayId === dayId)
+    .sort((a, b) => b.completedAt.localeCompare(a.completedAt));
+}
+
 export function saveUploadedVideo(input: {
   fileName: string;
   sizeBytes: number;
@@ -177,16 +183,26 @@ export function saveUploadedVideo(input: {
   return upload;
 }
 
+export function getUploadedVideo(videoId: string) {
+  return store().uploads.find((item) => item.id === videoId) ?? null;
+}
+
 export function createAnalysis(input: AnalysisCreateInput) {
   const activeUser = getActiveUser();
   if (!activeUser) {
     throw new Error("Missing active user");
   }
 
+  const workoutDay = getWorkoutDay(input.workoutDayId);
+  if (!workoutDay) {
+    throw new Error("Missing workout day");
+  }
+
+  const upload = getUploadedVideo(input.videoId);
   const analysis = createMockAnalysis({
     ...input,
     userId: activeUser.id,
-  });
+  }, upload);
   store().analyses.push(analysis);
   return analysis;
 }
@@ -199,9 +215,14 @@ export function saveWorkoutSession(input: SessionSaveInput) {
   const state = store();
   const activeUser = getActiveUser();
   const activePlan = getActivePlanBundle()?.plan;
+  const linkedAnalysis = input.analysisId ? getAnalysisById(input.analysisId) : null;
 
   if (!activeUser || !activePlan) {
     throw new Error("Missing active user or plan");
+  }
+
+  if (linkedAnalysis && linkedAnalysis.workoutDayId !== input.workoutDayId) {
+    throw new Error("Analysis does not belong to this workout day");
   }
 
   const sessionId = createId("session");
@@ -213,6 +234,9 @@ export function saveWorkoutSession(input: SessionSaveInput) {
     completedAt: nowIso(),
     summary: input.summary,
     overallRpe: input.overallRpe,
+    analysisId: linkedAnalysis?.id,
+    analysisSummary: linkedAnalysis?.nextSetRecommendation,
+    analysisFormScore: linkedAnalysis?.formScore,
   });
 
   state.setLogs.push(
