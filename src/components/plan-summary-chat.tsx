@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { WorkoutPlan } from "@/lib/types";
 
-type PlanSummaryChatProps = {
-  initialSummary: string;
-};
+type PlanSummaryChatProps = {};
 
 type ChatMessage = {
   role: "assistant" | "user";
@@ -18,12 +17,9 @@ type AdjustResponse = {
   error?: string;
 };
 
-export function PlanSummaryChat({ initialSummary }: PlanSummaryChatProps) {
+export function PlanSummaryChat({}: PlanSummaryChatProps) {
+  const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      text: initialSummary,
-    },
     {
       role: "assistant",
       text: "Do you want to adjust or swap out any exercises?",
@@ -37,6 +33,7 @@ export function PlanSummaryChat({ initialSummary }: PlanSummaryChatProps) {
     if (!input.trim()) return;
 
     setMessages((current) => [...current, { role: "user", text: input.trim() }]);
+    const userMessage = input.trim();
     setInput("");
     setIsLoading(true);
     setError(null);
@@ -46,7 +43,7 @@ export function PlanSummaryChat({ initialSummary }: PlanSummaryChatProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: input.trim(),
+          message: userMessage,
         }),
       });
 
@@ -61,15 +58,20 @@ export function PlanSummaryChat({ initialSummary }: PlanSummaryChatProps) {
         return;
       }
 
-      setMessages((current) => [
-        ...current,
-        { role: "assistant", text: data.assistantMessage },
-      ]);
-
       if (data.updatedPlan) {
-        // Force a router refresh to reload the dashboard with the new plan state
-        // In Next.js App Router, router.refresh() fetches the latest server components
-        window.location.reload(); 
+        setMessages((current) => [
+          ...current,
+          { role: "assistant", text: data.assistantMessage },
+          { role: "assistant", text: "✅ Your plan has been adjusted. Check the breakdown above!" }
+        ]);
+        // router.refresh() tells Next.js to fetch the latest server data (the new plan) 
+        // without losing the current client component state (the chat history).
+        router.refresh(); 
+      } else {
+        setMessages((current) => [
+          ...current,
+          { role: "assistant", text: data.assistantMessage },
+        ]);
       }
     } catch {
       setError("Plan adjustments are unavailable right now.");
@@ -80,8 +82,8 @@ export function PlanSummaryChat({ initialSummary }: PlanSummaryChatProps) {
 
   return (
     <section className="surface-card">
-      <p className="eyebrow">Plan summary & adjustments</p>
-      <h2 className="section-title">Modify your entire plan</h2>
+      <p className="eyebrow">Adjustments</p>
+      <h2 className="section-title">Modify your plan</h2>
       
       <div className="chat-thread compact-thread">
         {messages.map((message, index) => (

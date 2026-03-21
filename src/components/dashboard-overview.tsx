@@ -86,7 +86,7 @@ export function DashboardOverview({
         </ul>
       </section>
 
-      <PlanSummaryChat initialSummary={plan.summary} />
+      <PlanSummaryChat />
     </div>
   );
 }
