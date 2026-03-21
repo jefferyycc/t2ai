@@ -12,6 +12,7 @@ export type EquipmentType =
   | "bench"
   | "rack";
 export type AnalysisExerciseType = "squat" | "deadlift";
+export type AnalysisStatus = "queued" | "processing" | "complete" | "failed";
 
 export interface HevySetRow {
   title: string;
@@ -117,4 +118,205 @@ export interface ImportedDemoData {
   rollingSummary: RollingSummary;
   preferredEquipment: EquipmentType[];
   preferredSplit: SplitType;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface Profile {
+  id: string;
+  userId: string;
+  goal: string;
+  daysPerWeek: DaysPerWeek;
+  durationMinutes: number;
+  experienceLevel: ExperienceLevel;
+  injuries: string[];
+  limitations: LimitationTag[];
+  equipmentAccess: EquipmentType[];
+  workoutPreferences: string;
+  createdAt: string;
+}
+
+export interface Exercise {
+  id: string;
+  name: string;
+  primaryMuscle: string;
+  equipment: EquipmentType[];
+  tags: string[];
+  difficulty: ExperienceLevel;
+  description: string;
+}
+
+export interface ExerciseSubstitution {
+  id: string;
+  fromExerciseId: string;
+  toExerciseId: string;
+  reason: string;
+}
+
+export interface WorkoutPlan {
+  id: string;
+  userId: string;
+  profileId: string;
+  title: string;
+  splitType: SplitType;
+  summary: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkoutDay {
+  id: string;
+  planId: string;
+  dayIndex: number;
+  label: string;
+  focus: string;
+  durationMinutes: number;
+  notes: string;
+}
+
+export interface WorkoutExercise {
+  id: string;
+  workoutDayId: string;
+  exerciseId: string;
+  exerciseName: string;
+  sets: number;
+  reps: string;
+  restSeconds: number;
+  order: number;
+  cue: string;
+}
+
+export interface WorkoutSession {
+  id: string;
+  userId: string;
+  planId: string;
+  workoutDayId: string;
+  completedAt: string;
+  summary: string;
+  overallRpe?: number;
+}
+
+export interface SetLog {
+  id: string;
+  sessionId: string;
+  workoutExerciseId: string;
+  weightKg: number;
+  repsCompleted: number;
+  rpe?: number;
+}
+
+export interface UploadedVideo {
+  id: string;
+  userId: string;
+  fileName: string;
+  sizeBytes: number;
+  mimeType: string;
+  uploadedAt: string;
+}
+
+export interface VideoAnalysis {
+  id: string;
+  userId: string;
+  videoId: string;
+  exerciseType: AnalysisExerciseType;
+  status: AnalysisStatus;
+  repCount: number;
+  formScore: number;
+  confidenceScore: number;
+  feedbackBullets: string[];
+  nextSetRecommendation: string;
+  coachSummary: string;
+  createdAt: string;
+}
+
+export interface PlanUpdate {
+  id: string;
+  planId: string;
+  createdAt: string;
+  reason: string;
+  summary: string;
+}
+
+export interface AppState {
+  importedDemoData: ImportedDemoData;
+  users: User[];
+  profiles: Profile[];
+  exercises: Exercise[];
+  substitutions: ExerciseSubstitution[];
+  plans: WorkoutPlan[];
+  workoutDays: WorkoutDay[];
+  workoutExercises: WorkoutExercise[];
+  sessions: WorkoutSession[];
+  setLogs: SetLog[];
+  uploads: UploadedVideo[];
+  analyses: VideoAnalysis[];
+  planUpdates: PlanUpdate[];
+  activeUserId: string | null;
+  activePlanId: string | null;
+}
+
+export interface ProfileInput {
+  name: string;
+  goal: string;
+  daysPerWeek: DaysPerWeek;
+  durationMinutes: number;
+  experienceLevel: ExperienceLevel;
+  injuries: string[];
+  equipmentAccess: EquipmentType[];
+  workoutPreferences: string;
+}
+
+export interface GeneratePlanResult {
+  plan: WorkoutPlan;
+  days: WorkoutDay[];
+  exercises: WorkoutExercise[];
+  coachSummary: string;
+}
+
+export interface SwapRequest {
+  workoutExerciseId: string;
+  feedback: string;
+}
+
+export interface SwapResponse {
+  success: boolean;
+  updatedExercise?: WorkoutExercise;
+  assistantMessage: string;
+}
+
+export interface SessionSaveInput {
+  workoutDayId: string;
+  summary: string;
+  overallRpe?: number;
+  setLogs: Array<{
+    workoutExerciseId: string;
+    weightKg: number;
+    repsCompleted: number;
+    rpe?: number;
+  }>;
+}
+
+export interface AnalysisCreateInput {
+  videoId: string;
+  exerciseType: AnalysisExerciseType;
+}
+
+export interface DashboardSnapshot {
+  importedDemoData: ImportedDemoData;
+  activeUser: User | null;
+  activeProfile: Profile | null;
+  planBundle:
+    | {
+        plan: WorkoutPlan;
+        days: WorkoutDay[];
+        exercises: WorkoutExercise[];
+      }
+    | null;
+  recentSessions: WorkoutSession[];
+  recentAnalyses: VideoAnalysis[];
+  planUpdates: PlanUpdate[];
 }
