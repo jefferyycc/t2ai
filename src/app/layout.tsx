@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Zero to Agent",
+  title: "FitLoop MVP",
   description:
-    "Hackathon landing page concept for a Gemini-powered chatbot built on Vercel.",
+    "Personalized fitness MVP built with Next.js App Router, TypeScript, Gemini, and Vercel-compatible route handlers.",
 };
 
 export default function RootLayout({
