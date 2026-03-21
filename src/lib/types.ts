@@ -129,7 +129,6 @@ export type OnboardingResponse = {
   draft: OnboardingDraft;
   assistantMessage: string;
   missingField:
-    | "workoutGoal"
     | "workoutDaysPerWeek"
     | "workoutDurationMinutes"
     | "limitations"
