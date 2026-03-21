@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { OnboardingDraft, OnboardingResponse } from "@/lib/types";
 
 type ChatMessage = {
@@ -14,6 +15,7 @@ const initialDraft: OnboardingDraft = {
 };
 
 export function OnboardingChat() {
+  const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState<OnboardingDraft>(initialDraft);
   const [input, setInput] = useState("");
@@ -21,6 +23,7 @@ export function OnboardingChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [complete, setComplete] = useState(false);
+  const [countdown, setCountdown] = useState(3);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +63,21 @@ export function OnboardingChat() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (complete) {
+      if (countdown <= 0) {
+        router.push("/dashboard");
+        return;
+      }
+      
+      const interval = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [complete, countdown, router]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -110,7 +128,7 @@ export function OnboardingChat() {
       <div className="section-head">
         <div>
           <p className="eyebrow">AI onboarding</p>
-          <h2 className="section-title-lg">Build your first plan in one chat.</h2>
+          <h2 className="section-title-lg">Build your training plan in one chat</h2>
         </div>
       </div>
 
@@ -129,6 +147,12 @@ export function OnboardingChat() {
         {isInitializing || isLoading ? (
           <p className="status-text">Generating your next step...</p>
         ) : null}
+        {complete ? (
+          <div className="bg-green-50 text-green-700 p-4 rounded-lg border border-green-200 text-center my-4 animate-pulse">
+            <p className="font-semibold text-lg">🎉 Your plan is ready!</p>
+            <p className="text-sm opacity-90">Redirecting to your dashboard in {countdown} seconds...</p>
+          </div>
+        ) : null}
         {error ? <p className="error-text">{error}</p> : null}
       </div>
 
@@ -139,6 +163,14 @@ export function OnboardingChat() {
           placeholder="Example: My goal is strength. I can train 4 days a week for 45 minutes. I’m intermediate and want to avoid shoulder pain."
           value={input}
           onChange={(event) => setInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              if (input.trim() && !isLoading && !isInitializing) {
+                event.currentTarget.form?.requestSubmit();
+              }
+            }
+          }}
         />
         <div className="chat-actions">
           <button

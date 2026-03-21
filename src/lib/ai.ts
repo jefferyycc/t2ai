@@ -1,26 +1,17 @@
 import { google } from "@ai-sdk/google";
-import { generateText } from "ai";
+import { generateText, generateObject } from "ai";
+import { z } from "zod";
 
 type CoachingCopyInput = {
   system: string;
   prompt: string;
 };
 
-type StructuredDataInput = {
+type StructuredDataInput<T> = {
   system: string;
   prompt: string;
+  schema: z.ZodType<T>;
 };
-
-function extractJsonObject(text: string) {
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error("Gemini did not return valid JSON");
-  }
-
-  return text.slice(start, end + 1);
-}
 
 export async function generateCoachingCopy({
   system,
@@ -48,22 +39,18 @@ export async function generateCoachingCopy({
 export async function generateStructuredData<T>({
   system,
   prompt,
-}: StructuredDataInput): Promise<T> {
+  schema,
+}: StructuredDataInput<T>): Promise<T> {
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     throw new Error("Missing GOOGLE_GENERATIVE_AI_API_KEY");
   }
 
-  const { text } = await generateText({
+  const { object } = await generateObject({
     model: google("gemini-2.5-flash"),
     system,
     prompt,
+    schema,
   });
 
-  const trimmed = text.trim();
-
-  if (!trimmed) {
-    throw new Error("Gemini returned an empty structured response");
-  }
-
-  return JSON.parse(extractJsonObject(trimmed)) as T;
+  return object;
 }
