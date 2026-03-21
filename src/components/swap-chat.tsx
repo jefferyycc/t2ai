@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { SwapResponse, WorkoutDay } from "@/lib/types";
 
@@ -126,7 +127,13 @@ export function SwapChat({ day }: SwapChatProps) {
               >
                 <div>
                   <div className="flex items-center gap-2">
-                    <p className="exercise-name">{exercise.name}</p>
+                    <Link 
+                      href={`/${exercise.exerciseId}`}
+                      className="exercise-name hover:text-blue-600 transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {exercise.name}
+                    </Link>
                     {exercise.isUpdated && (
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800 animate-pulse">
                         ADJUSTED

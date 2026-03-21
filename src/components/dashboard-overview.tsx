@@ -61,25 +61,27 @@ export function DashboardOverview({
         <ul className="stack-list">
           {today.exercises.map((exercise) => (
             <li key={exercise.id}>
-              <div className="flex items-center gap-2">
-                <span className={exercise.isUpdated ? "text-green-600 font-medium" : ""}>
-                  {exercise.name}
-                </span>
-                {exercise.isUpdated && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 animate-pulse">
-                    ADJUSTED
+              <Link 
+                href={`/${exercise.exerciseId}`}
+                className="flex-1 group"
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`group-hover:text-blue-600 transition-colors ${exercise.isUpdated ? "text-green-600 font-medium" : ""}`}>
+                    {exercise.name}
                   </span>
-                )}
-              </div>
+                  {exercise.isUpdated && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 animate-pulse">
+                      ADJUSTED
+                    </span>
+                  )}
+                </div>
+              </Link>
               <span className={exercise.isUpdated ? "text-green-600 font-medium" : ""}>
                 {exercise.sets} x {exercise.reps}
               </span>
             </li>
           ))}
         </ul>
-        <Link className="secondary-button" href={`/workouts/${today.id}`}>
-          Open workout day
-        </Link>
       </section>
 
       <section className="surface-card">
@@ -95,7 +97,7 @@ export function DashboardOverview({
         </ul>
       </section>
 
-      <PlanSummaryChat />
+      <PlanSummaryChat planId={plan.id} />
     </div>
   );
 }

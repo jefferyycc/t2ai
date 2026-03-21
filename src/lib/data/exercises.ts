@@ -2,7 +2,7 @@ import { Exercise, ExerciseSubstitution } from "@/lib/types";
 
 export const seedExercises: Exercise[] = [
   {
-    id: "goblet-squat",
+    id: "squat",
     name: "Goblet Squat",
     category: "squat",
     equipment: ["dumbbells"],
@@ -190,7 +190,7 @@ export const seedSubstitutions: ExerciseSubstitution[] = [
   },
   {
     id: "sub-5",
-    sourceExerciseId: "goblet-squat",
+    sourceExerciseId: "squat",
     substituteExerciseId: "leg-press",
     reason: "Offers a supported squat pattern when the user wants less balance demand.",
   },
