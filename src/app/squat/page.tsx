@@ -259,6 +259,26 @@ export default function SquatAnalysisPage() {
             </div>
           </div>
           
+          {score !== null && score < 80 && (
+            <div className="mt-8 pt-6 border-t border-slate-100">
+              <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                <span className="bg-blue-100 text-blue-600 p-1 rounded-full text-xs">ℹ</span>
+                Correct Form Reference
+              </h3>
+              <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                <video 
+                  src="/correct_results.mp4" 
+                  className="w-full aspect-video object-cover"
+                  controls
+                  muted
+                  loop
+                />
+              </div>
+              <p className="text-xs text-slate-500 mt-2 italic">
+                Compare your movement with this reference to improve your score.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
