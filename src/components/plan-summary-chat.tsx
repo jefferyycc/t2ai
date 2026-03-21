@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { WorkoutPlan } from "@/lib/types";
 
-type PlanSummaryChatProps = {};
+type PlanSummaryChatProps = {
+  planId: string;
+};
 
 type ChatMessage = {
   role: "assistant" | "user";
@@ -17,8 +18,7 @@ type AdjustResponse = {
   error?: string;
 };
 
-export function PlanSummaryChat({}: PlanSummaryChatProps) {
-  const router = useRouter();
+export function PlanSummaryChat({ planId }: PlanSummaryChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
@@ -30,28 +30,39 @@ export function PlanSummaryChat({}: PlanSummaryChatProps) {
   const [error, setError] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
+  const storageKey = `plan_adjustment_messages_${planId}`;
+
   useEffect(() => {
     setIsMounted(true);
-    // Load from localStorage only once on mount
-    const saved = localStorage.getItem("plan_adjustment_messages");
+    // Load from localStorage only once on mount or when planId changes
+    const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           setMessages(parsed);
+          return;
         }
       } catch (e) {
         console.error("Failed to parse saved messages", e);
       }
     }
-  }, []);
+    
+    // Default message if no history for this plan
+    setMessages([
+      {
+        role: "assistant",
+        text: "Do you want to adjust or swap out any exercises?",
+      }
+    ]);
+  }, [storageKey]);
 
   // Sync with localStorage on changes, but only after mounting
   useEffect(() => {
     if (isMounted && messages.length > 0) {
-      localStorage.setItem("plan_adjustment_messages", JSON.stringify(messages));
+      localStorage.setItem(storageKey, JSON.stringify(messages));
     }
-  }, [messages, isMounted]);
+  }, [messages, isMounted, storageKey]);
 
   async function requestAdjustment() {
     if (!input.trim()) return;
