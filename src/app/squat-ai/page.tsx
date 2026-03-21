@@ -35,7 +35,7 @@ export default function SquatAnalysisPage() {
     setScore(null);
     
     // Mock analysis based on video filename
-    let mockMetrics: any = {};
+    let mockMetrics: Record<string, { status: string; text: string }> = {};
     let mockScore: number | null = null;
     let mockReps = 0;
 
@@ -79,15 +79,10 @@ export default function SquatAnalysisPage() {
     // Mock rep counter and results
     setTimeout(() => {
       setReps(mockReps);
-      setMetrics(mockMetrics);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setMetrics(mockMetrics as any);
       setScore(mockScore);
     }, 3000);
-  };
-
-  const handleMockVideo = (videoName: string) => {
-    const url = `/${videoName}`;
-    setVideoUrl(url);
-    handleStartAnalysis("video", url);
   };
 
   const renderStatusIcon = (status: string) => {

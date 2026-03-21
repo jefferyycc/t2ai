@@ -128,7 +128,7 @@ export function SwapChat({ day }: SwapChatProps) {
                 <div>
                   <div className="flex items-center gap-2">
                     <Link 
-                      href={`/${exercise.exerciseId}`}
+                      href={exercise.category === "squat" || exercise.name.toLowerCase().includes("squat") ? "/squat" : `/${exercise.exerciseId}`}
                       className="exercise-name hover:text-blue-600 transition-colors"
                       onClick={(e) => e.stopPropagation()}
                     >

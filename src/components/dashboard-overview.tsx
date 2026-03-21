@@ -62,7 +62,7 @@ export function DashboardOverview({
           {today.exercises.map((exercise) => (
             <li key={exercise.id}>
               <Link 
-                href={`/${exercise.exerciseId}`}
+                href={exercise.category === "squat" || exercise.name.toLowerCase().includes("squat") ? "/squat" : `/${exercise.exerciseId}`}
                 className="flex-1 group"
               >
                 <div className="flex items-center gap-2">
