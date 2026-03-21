@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "FitLoop MVP",
+  title: "Train Train",
   description:
     "Personalized fitness MVP built with Next.js App Router, TypeScript, Gemini, and Vercel-compatible route handlers.",
 };
