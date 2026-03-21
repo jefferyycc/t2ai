@@ -61,7 +61,7 @@ export function saveProfileDraft(draft: OnboardingDraft) {
   return state.profile;
 }
 
-export function completeProfile(draft: OnboardingDraft) {
+export async function completeProfile(draft: OnboardingDraft) {
   const state = getState();
   const profile: Profile = {
     ...state.profile,
@@ -72,7 +72,7 @@ export function completeProfile(draft: OnboardingDraft) {
   };
 
   state.profile = profile;
-  state.currentPlan = generateWorkoutPlan(profile);
+  state.currentPlan = await generateWorkoutPlan(profile);
 
   return {
     profile: state.profile,
@@ -80,14 +80,14 @@ export function completeProfile(draft: OnboardingDraft) {
   };
 }
 
-export function generatePlanFromProfile() {
+export async function generatePlanFromProfile() {
   const state = getState();
 
   if (!state.profile.onboardingComplete) {
     return null;
   }
 
-  state.currentPlan = generateWorkoutPlan(state.profile);
+  state.currentPlan = await generateWorkoutPlan(state.profile);
   return state.currentPlan;
 }
 
@@ -107,6 +107,9 @@ export function applyExerciseSwap(input: {
   workoutExerciseId: string;
   newExerciseId: string;
   reason: string;
+  newName?: string;
+  sets?: number;
+  reps?: string;
 }) {
   const state = getState();
   const plan = state.currentPlan;
@@ -141,8 +144,10 @@ export function applyExerciseSwap(input: {
         return {
           ...exercise,
           exerciseId: nextExercise.id,
-          name: nextExercise.name,
+          name: input.newName ?? nextExercise.name,
           category: nextExercise.category,
+          sets: input.sets ?? exercise.sets,
+          reps: input.reps ?? exercise.reps,
         };
       }),
     };

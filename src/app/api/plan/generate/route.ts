@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { generatePlanFromProfile } from "@/lib/db";
 
 export async function POST() {
-  const plan = generatePlanFromProfile();
+  const plan = await generatePlanFromProfile();
 
   if (!plan) {
     return NextResponse.json(

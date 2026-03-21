@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Profile, WorkoutPlan } from "@/lib/types";
+import { PlanSummaryChat } from "./plan-summary-chat";
 
 type DashboardOverviewProps = {
   profile: Profile;
@@ -54,6 +55,9 @@ export function DashboardOverview({
         <p className="eyebrow">Today</p>
         <h2 className="section-title">{today.title}</h2>
         <p className="muted-copy">{today.focus}</p>
+        <div className="mt-4 mb-6 p-4 bg-blue-50 border-l-4 border-blue-400 text-blue-800 italic text-sm">
+          {plan.summary}
+        </div>
         <ul className="stack-list">
           {today.exercises.slice(0, 4).map((exercise) => (
             <li key={exercise.id}>
@@ -82,11 +86,7 @@ export function DashboardOverview({
         </ul>
       </section>
 
-      <section className="surface-card">
-        <p className="eyebrow">Plan summary</p>
-        <h2 className="section-title">Why this plan fits</h2>
-        <p className="muted-copy">{plan.summary}</p>
-      </section>
+      <PlanSummaryChat />
     </div>
   );
 }
