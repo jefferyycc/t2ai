@@ -1,101 +1,15 @@
 import { seedExercises } from "@/lib/data/exercises";
+import { generateStructuredData } from "@/lib/ai";
+import { z } from "zod";
 import {
-  Exercise,
-  ExerciseCategory,
   Limitation,
   OnboardingDraft,
   Profile,
-  WorkoutDay,
   WorkoutExercise,
-  WorkoutGoal,
   WorkoutPlan,
 } from "@/lib/types";
 
-const categoryPresets: Record<
-  string,
-  { category: ExerciseCategory; sets: number; reps: string; restSeconds: number }[]
-> = {
-  full_body_a: [
-    { category: "squat", sets: 4, reps: "8-10", restSeconds: 90 },
-    { category: "hinge", sets: 3, reps: "8-10", restSeconds: 90 },
-    { category: "push_horizontal", sets: 3, reps: "8-12", restSeconds: 75 },
-    { category: "pull_horizontal", sets: 3, reps: "10-12", restSeconds: 75 },
-    { category: "core", sets: 3, reps: "10-12", restSeconds: 45 },
-  ],
-  full_body_b: [
-    { category: "squat", sets: 3, reps: "10-12", restSeconds: 75 },
-    { category: "push_vertical", sets: 3, reps: "8-10", restSeconds: 75 },
-    { category: "pull_vertical", sets: 3, reps: "10-12", restSeconds: 75 },
-    { category: "single_leg", sets: 3, reps: "8 each side", restSeconds: 60 },
-    { category: "core", sets: 3, reps: "30-45 sec", restSeconds: 45 },
-  ],
-  full_body_c: [
-    { category: "hinge", sets: 4, reps: "6-8", restSeconds: 105 },
-    { category: "push_horizontal", sets: 3, reps: "8-10", restSeconds: 75 },
-    { category: "pull_horizontal", sets: 3, reps: "10-12", restSeconds: 75 },
-    { category: "single_leg", sets: 3, reps: "10 each side", restSeconds: 60 },
-    { category: "core", sets: 3, reps: "12-15", restSeconds: 45 },
-  ],
-  upper_a: [
-    { category: "push_horizontal", sets: 4, reps: "8-10", restSeconds: 75 },
-    { category: "pull_horizontal", sets: 4, reps: "10-12", restSeconds: 75 },
-    { category: "push_vertical", sets: 3, reps: "8-10", restSeconds: 75 },
-    { category: "pull_vertical", sets: 3, reps: "10-12", restSeconds: 75 },
-    { category: "core", sets: 3, reps: "10-12", restSeconds: 45 },
-  ],
-  lower_a: [
-    { category: "squat", sets: 4, reps: "8-10", restSeconds: 90 },
-    { category: "hinge", sets: 4, reps: "8-10", restSeconds: 90 },
-    { category: "single_leg", sets: 3, reps: "8 each side", restSeconds: 60 },
-    { category: "core", sets: 3, reps: "10-12", restSeconds: 45 },
-  ],
-  upper_b: [
-    { category: "push_horizontal", sets: 3, reps: "10-12", restSeconds: 75 },
-    { category: "pull_vertical", sets: 4, reps: "8-10", restSeconds: 75 },
-    { category: "pull_horizontal", sets: 3, reps: "10-12", restSeconds: 75 },
-    { category: "push_vertical", sets: 2, reps: "12-15", restSeconds: 60 },
-    { category: "core", sets: 3, reps: "30-45 sec", restSeconds: 45 },
-  ],
-  lower_b: [
-    { category: "squat", sets: 3, reps: "10-12", restSeconds: 75 },
-    { category: "hinge", sets: 3, reps: "10-12", restSeconds: 75 },
-    { category: "single_leg", sets: 3, reps: "10 each side", restSeconds: 60 },
-    { category: "core", sets: 3, reps: "10-12", restSeconds: 45 },
-  ],
-};
-
-const splitTemplates: Record<number, { title: string; focus: string; preset: string }[]> = {
-  2: [
-    { title: "Day 1", focus: "Full body", preset: "full_body_a" },
-    { title: "Day 2", focus: "Full body", preset: "full_body_b" },
-  ],
-  3: [
-    { title: "Day 1", focus: "Full body", preset: "full_body_a" },
-    { title: "Day 2", focus: "Full body", preset: "full_body_b" },
-    { title: "Day 3", focus: "Full body", preset: "full_body_c" },
-  ],
-  4: [
-    { title: "Day 1", focus: "Upper body", preset: "upper_a" },
-    { title: "Day 2", focus: "Lower body", preset: "lower_a" },
-    { title: "Day 3", focus: "Upper body", preset: "upper_b" },
-    { title: "Day 4", focus: "Lower body", preset: "lower_b" },
-  ],
-  5: [
-    { title: "Day 1", focus: "Upper body", preset: "upper_a" },
-    { title: "Day 2", focus: "Lower body", preset: "lower_a" },
-    { title: "Day 3", focus: "Full body", preset: "full_body_b" },
-    { title: "Day 4", focus: "Upper body", preset: "upper_b" },
-    { title: "Day 5", focus: "Lower body", preset: "lower_b" },
-  ],
-  6: [
-    { title: "Day 1", focus: "Upper body", preset: "upper_a" },
-    { title: "Day 2", focus: "Lower body", preset: "lower_a" },
-    { title: "Day 3", focus: "Full body", preset: "full_body_a" },
-    { title: "Day 4", focus: "Upper body", preset: "upper_b" },
-    { title: "Day 5", focus: "Lower body", preset: "lower_b" },
-    { title: "Day 6", focus: "Full body", preset: "full_body_c" },
-  ],
-};
+// ... keep filterExercises and other helpers for context if they exist
 
 function includesLimitation(limitations: Limitation[], value: Limitation) {
   return limitations.includes(value);
@@ -129,76 +43,39 @@ function filterExercises(profile: Profile | OnboardingDraft) {
   });
 }
 
-function goalLabel(goal: WorkoutGoal | undefined) {
-  switch (goal) {
-    case "fat_loss":
-      return "fat loss";
-    case "hypertrophy":
-      return "hypertrophy";
-    case "strength":
-      return "strength";
-    default:
-      return "general fitness";
-  }
-}
+const workoutPlanSchema = z.object({
+  summary: z.string(),
+  splitLabel: z.string(),
+  days: z.array(z.object({
+    title: z.string(),
+    focus: z.string(),
+    exercises: z.array(z.object({
+      exerciseId: z.string(),
+      targetMuscle: z.string().describe("The primary muscle group targeted, e.g. 'Quads', 'Chest', 'Lats'"),
+      sets: z.number(),
+      reps: z.string(),
+      restSeconds: z.number(),
+    }))
+  }))
+});
 
-function pickExercise(
-  category: ExerciseCategory,
-  available: Exercise[],
-  used: Set<string>,
-) {
-  const candidates = available.filter((exercise) => exercise.category === category);
-  const fresh = candidates.find((exercise) => !used.has(exercise.id));
-  const selected = fresh ?? candidates[0];
+export async function generateWorkoutPlan(profile: Profile): Promise<WorkoutPlan> {
+  const available = filterExercises(profile).map(e => ({
+    id: e.id,
+    name: e.name,
+    category: e.category,
+    equipment: e.equipment
+  }));
 
-  if (selected) {
-    used.add(selected.id);
-  }
+  const generated = await generateStructuredData({
+    system: "You are an expert fitness coach AI. Your task is to design a personalized workout plan.",
+    prompt: `Create a ${profile.workoutDaysPerWeek} day workout plan for someone with a goal of ${profile.workoutGoal || 'general fitness'}.
+They have ${profile.workoutDurationMinutes} minutes per session. Their experience level is ${profile.experienceLevel || 'not specified'}.
+Available exercises (DO NOT USE ANY EXERCISE ID NOT IN THIS LIST):
+${JSON.stringify(available, null, 2)}
 
-  return selected;
-}
-
-function makeWorkoutExercise(
-  exercise: Exercise,
-  prescription: {
-    sets: number;
-    reps: string;
-    restSeconds: number;
-  },
-): WorkoutExercise {
-  return {
-    id: crypto.randomUUID(),
-    exerciseId: exercise.id,
-    name: exercise.name,
-    category: exercise.category,
-    sets: prescription.sets,
-    reps: prescription.reps,
-    restSeconds: prescription.restSeconds,
-    notes: exercise.notes,
-  };
-}
-
-export function generateWorkoutPlan(profile: Profile): WorkoutPlan {
-  const template = splitTemplates[profile.workoutDaysPerWeek ?? 3] ?? splitTemplates[3];
-  const available = filterExercises(profile);
-  const used = new Set<string>();
-
-  const days: WorkoutDay[] = template.map((day, index) => {
-    const exercises = categoryPresets[day.preset]
-      .map((preset) => {
-        const exercise = pickExercise(preset.category, available, used);
-        return exercise ? makeWorkoutExercise(exercise, preset) : null;
-      })
-      .filter((item): item is WorkoutExercise => item !== null);
-
-    return {
-      id: crypto.randomUUID(),
-      planId: "",
-      dayIndex: index + 1,
-      title: day.title,
-      focus: day.focus,
-      exercises,
-    };
+Ensure the volume and exercise selection match their goals and time constraints. Provide a motivating summary in exactly 3 short sentences. For every exercise, specify the primary target muscle group.`,
+    schema: workoutPlanSchema
   });
 
   const planId = crypto.randomUUID();
@@ -207,14 +84,32 @@ export function generateWorkoutPlan(profile: Profile): WorkoutPlan {
     id: planId,
     userId: profile.userId,
     profileId: profile.id,
-    summary: `A ${template.length}-day ${goalLabel(profile.workoutGoal)} plan with ${profile.workoutDurationMinutes}-minute sessions and exercise choices adapted to your equipment and limitations.`,
-    splitLabel:
-      template.length === 3
-        ? "Full body split"
-        : template.length === 4
-          ? "Upper / lower split"
-          : "Adaptive split",
-    days: days.map((day) => ({ ...day, planId })),
+    summary: generated.summary,
+    splitLabel: generated.splitLabel,
+    days: generated.days.map((day, i) => {
+      const dayId = crypto.randomUUID();
+      return {
+        id: dayId,
+        planId,
+        dayIndex: i + 1,
+        title: day.title,
+        focus: day.focus,
+        exercises: day.exercises.map(ex => {
+          const fullEx = seedExercises.find(e => e.id === ex.exerciseId);
+          if (!fullEx) return null;
+          return {
+            id: crypto.randomUUID(),
+            exerciseId: fullEx.id,
+            name: `${fullEx.name} (${ex.targetMuscle})`,
+            category: fullEx.category,
+            sets: ex.sets,
+            reps: ex.reps,
+            restSeconds: ex.restSeconds,
+            notes: fullEx.notes,
+          };
+        }).filter((item) => item !== null) as WorkoutExercise[]
+      };
+    }),
     updatedAt: new Date().toISOString(),
   };
 }

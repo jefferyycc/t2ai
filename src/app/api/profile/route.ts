@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import {
   buildInitialOnboardingMessage,
-  buildOnboardingReply,
   getMissingField,
   parseOnboardingMessage,
 } from "@/lib/profile";
@@ -29,16 +28,14 @@ export async function POST(request: Request) {
       draft: OnboardingDraft;
     };
 
-    const nextDraft = await parseOnboardingMessage(body.message, body.draft);
+    const { assistantMessage, ...nextDraft } = await parseOnboardingMessage(body.message, body.draft);
     const missingField = getMissingField(nextDraft);
 
     if (missingField) {
       saveProfileDraft(nextDraft);
     } else {
-      completeProfile(nextDraft);
+      await completeProfile(nextDraft);
     }
-
-    const assistantMessage = await buildOnboardingReply(nextDraft);
 
     return NextResponse.json({
       draft: nextDraft,

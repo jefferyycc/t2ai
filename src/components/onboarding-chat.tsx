@@ -24,8 +24,14 @@ export function OnboardingChat() {
   const [error, setError] = useState<string | null>(null);
   const [complete, setComplete] = useState(false);
   const [countdown, setCountdown] = useState(3);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted) return;
     let cancelled = false;
 
     async function loadInitialMessage() {
@@ -62,7 +68,7 @@ export function OnboardingChat() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isMounted]);
 
   useEffect(() => {
     if (complete) {
@@ -132,61 +138,69 @@ export function OnboardingChat() {
         </div>
       </div>
 
-      <div className="chat-thread">
-        {messages.map((message, index) => (
-          <div
-            className={`chat-bubble ${message.role === "user" ? "chat-bubble-user" : ""}`}
-            key={`${message.role}-${index}`}
-          >
-            <span className="chat-role">
-              {message.role === "user" ? "You" : "Coach"}
-            </span>
-            <p>{message.text}</p>
-          </div>
-        ))}
-        {isInitializing || isLoading ? (
-          <p className="status-text">Generating your next step...</p>
-        ) : null}
-        {complete ? (
-          <div className="bg-green-50 text-green-700 p-4 rounded-lg border border-green-200 text-center my-4 animate-pulse">
-            <p className="font-semibold text-lg">🎉 Your plan is ready!</p>
-            <p className="text-sm opacity-90">Redirecting to your dashboard in {countdown} seconds...</p>
-          </div>
-        ) : null}
-        {error ? <p className="error-text">{error}</p> : null}
-      </div>
-
-      <form className="chat-form" onSubmit={handleSubmit}>
-        <textarea
-          className="text-input"
-          rows={4}
-          placeholder="Example: My goal is strength. I can train 4 days a week for 45 minutes. I’m intermediate and want to avoid shoulder pain."
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              if (input.trim() && !isLoading && !isInitializing) {
-                event.currentTarget.form?.requestSubmit();
-              }
-            }
-          }}
-        />
-        <div className="chat-actions">
-          <button
-            className="primary-button"
-            disabled={isInitializing || isLoading || !input.trim()}
-            type="submit"
-          >
-            {isLoading ? "Saving..." : "Send"}
-          </button>
-          {complete ? (
-            <Link className="secondary-button" href="/dashboard">
-              Open dashboard
-            </Link>
-          ) : null}
+      {!isMounted ? (
+        <div className="chat-thread">
+          <p className="status-text">Loading chat...</p>
         </div>
-      </form>
+      ) : (
+        <>
+          <div className="chat-thread">
+            {messages.map((message, index) => (
+              <div
+                className={`chat-bubble ${message.role === "user" ? "chat-bubble-user" : ""}`}
+                key={`${message.role}-${index}`}
+              >
+                <span className="chat-role">
+                  {message.role === "user" ? "You" : "Coach"}
+                </span>
+                <p>{message.text}</p>
+              </div>
+            ))}
+            {isInitializing || isLoading ? (
+              <p className="status-text">Generating your next step...</p>
+            ) : null}
+            {complete ? (
+              <div className="bg-green-50 text-green-700 p-4 rounded-lg border border-green-200 text-center my-4 animate-pulse">
+                <p className="font-semibold text-lg">🎉 Your plan is ready!</p>
+                <p className="text-sm opacity-90">Redirecting to your dashboard in {countdown} seconds...</p>
+              </div>
+            ) : null}
+            {error ? <p className="error-text">{error}</p> : null}
+          </div>
+
+          <form className="chat-form" onSubmit={handleSubmit}>
+            <textarea
+              className="text-input"
+              rows={4}
+              placeholder="Example: My goal is strength. I can train 4 days a week for 45 minutes. I’m intermediate and want to avoid shoulder pain."
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  if (input.trim() && !isLoading && !isInitializing) {
+                    event.currentTarget.form?.requestSubmit();
+                  }
+                }
+              }}
+            />
+            <div className="chat-actions">
+              <button
+                className="primary-button"
+                disabled={isInitializing || isLoading || !input.trim()}
+                type="submit"
+              >
+                {isLoading ? "Saving..." : "Send"}
+              </button>
+              {complete ? (
+                <Link className="secondary-button" href="/dashboard">
+                  Open dashboard
+                </Link>
+              ) : null}
+            </div>
+          </form>
+        </>
+      )}
     </section>
   );
 }
