@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.52",
+    "@ai-sdk/openai": "^3.0.52",
     "@ai-sdk/react": "^3.0.136",
     "@mediapipe/tasks-vision": "^0.10.33",
     "ai": "^6.0.134",

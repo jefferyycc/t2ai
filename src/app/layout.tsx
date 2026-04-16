@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Train Train",
   description:
-    "Personalized fitness MVP built with Next.js App Router, TypeScript, Gemini, and Vercel-compatible route handlers.",
+    "Personalized fitness MVP built with Next.js App Router, TypeScript, and provider-agnostic AI routing.",
 };
 
 export default function RootLayout({

@@ -35,7 +35,9 @@ flowchart TD
 
     API --> DECISION["Decision Engine<br/>Rules, scoring, adaptation"]
     API --> RETRIEVAL["Retrieval Layer<br/>pgvector knowledge search"]
-    API --> LLM["LLM Layer<br/>OpenAI / Gemini / local experiments"]
+    API --> LLM["AI Runtime<br/>fixture / Ollama / Gemini / Gateway later"]
+    LLM --> MAC["Local Data Plane<br/>Mac mini Ollama"]
+    LLM --> CLOUD["Hosted Data Plane<br/>explicit cloud provider"]
 
     JOBS --> POSE["Vision / Pose Pipeline<br/>MediaPipe first"]
     POSE --> DECISION
@@ -169,11 +171,16 @@ Recommended design:
 - `LLM for language and structure`
 - `rules engine for final decisions`
 - `retrieval for grounding`
+- `provider adapters for local and hosted models`
+- `fixture mode for tests and no-key development`
 
 Initial model strategy:
 
-- hosted model for reliable product flows
-- optional open-source models for experimentation and learning
+- default local development through `Ollama`
+- `llama3.2` for short coach copy
+- `gemma3:4b` for structured onboarding, plan drafts, and plan adjustment drafts
+- `fixture` provider for tests and UI development without any API key
+- explicit hosted provider selection for hackathons and polished demos
 
 Good uses of AI in this project:
 
@@ -187,6 +194,16 @@ Bad early uses:
 
 - letting the model make all training decisions
 - letting the model infer injury risk directly from video
+- silently falling back from local models to a cloud provider
+
+Security rules:
+
+- the browser must never call Ollama directly
+- `OLLAMA_BASE_URL` is server-only configuration
+- raw Ollama should stay on localhost, private LAN, or a VPN/Tailscale-style private network
+- cloud providers must be explicitly selected with `AI_PROVIDER`
+- model output is untrusted until Zod validation and deterministic safety checks pass
+- observability should log model metadata and validation status by default, not raw private prompt text
 
 Open-source model references:
 
@@ -331,8 +348,16 @@ References:
 ### AI / LLM
 
 - current repo uses `Vercel AI SDK`
-- hosted models for reliability
-- open-source model experiments through `Ollama` or Hugging Face later
+- local development uses `Ollama` through an OpenAI-compatible endpoint
+- hosted models are explicit opt-in providers for hackathons and demos
+- model routing is task-based, not a single global prompt-only path
+
+Recommended local model profile for a Mac mini M2 Pro with about `16 GB` RAM:
+
+- `llama3.2` for fast coach copy
+- `gemma3:4b` for structured output and plan drafts
+- `gemma3:12b` only as optional quality mode
+- `fixture` mode for tests and no-key UI development
 
 References:
 

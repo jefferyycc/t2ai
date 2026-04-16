@@ -15,7 +15,7 @@ export async function GET() {
     const message =
       error instanceof Error
         ? error.message
-        : "Gemini could not create the onboarding message.";
+        : "The AI coach could not create the onboarding message.";
 
     return NextResponse.json({ error: message }, { status: 500 });
   }
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     const message =
       error instanceof Error
         ? error.message
-        : "Gemini could not generate an onboarding reply.";
+        : "The AI coach could not generate an onboarding reply.";
 
     return NextResponse.json({ error: message }, { status: 500 });
   }

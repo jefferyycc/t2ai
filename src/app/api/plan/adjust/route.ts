@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { applyExerciseSwap, getCurrentPlan } from "@/lib/db";
+import { applyExerciseSwap, getAppState, getCurrentPlan } from "@/lib/db";
 import { generateStructuredData } from "@/lib/ai";
 import { seedExercises } from "@/lib/data/exercises";
 import { z } from "zod";
@@ -14,6 +14,93 @@ const adjustmentSchema = z.object({
   sets: z.number().nullable().describe("The new number of sets, if an adjustment was requested or is appropriate."),
   reps: z.string().nullable().describe("The new reps string (e.g. '8-10'), if an adjustment was requested or is appropriate."),
 });
+
+function hasTrainingRedFlag(message: string) {
+  return /\b(sharp pain|chest pain|shortness of breath|dizzy|faint|numb|tingling|injury|injured|ill|sick|fever)\b/i.test(
+    message,
+  );
+}
+
+function validateAdjustment(input: {
+  dayId: string;
+  workoutExerciseId: string;
+  newExerciseId: string;
+  sets: number | null;
+  reps: string | null;
+  message: string;
+}) {
+  if (hasTrainingRedFlag(input.message)) {
+    return {
+      ok: false,
+      reason:
+        "I cannot safely adjust training around pain, illness, or injury from chat alone. Reduce intensity today and check with a qualified professional if symptoms persist.",
+    };
+  }
+
+  const state = getAppState();
+  const plan = state.currentPlan;
+  const day = plan?.days.find((candidate) => candidate.id === input.dayId);
+  const currentExercise = day?.exercises.find(
+    (candidate) => candidate.id === input.workoutExerciseId,
+  );
+  const nextExercise = seedExercises.find(
+    (candidate) => candidate.id === input.newExerciseId,
+  );
+
+  if (!day || !currentExercise || !nextExercise) {
+    return {
+      ok: false,
+      reason: "I could not find a valid exercise in the current plan to update.",
+    };
+  }
+
+  if (nextExercise.category !== currentExercise.category) {
+    return {
+      ok: false,
+      reason:
+        "I found a possible change, but it does not match the movement pattern of the original exercise.",
+    };
+  }
+
+  const hasEquipment = nextExercise.equipment.some((item) =>
+    state.profile.equipment.includes(item),
+  );
+  if (!hasEquipment) {
+    return {
+      ok: false,
+      reason:
+        "I found a possible change, but it uses equipment that is not in your profile.",
+    };
+  }
+
+  const blockedByLimitation =
+    nextExercise.avoidFor.some((item) => state.profile.limitations.includes(item)) ||
+    (state.profile.limitations.includes("shoulders") &&
+      nextExercise.category === "push_vertical");
+  if (blockedByLimitation) {
+    return {
+      ok: false,
+      reason:
+        "I found a possible change, but it conflicts with your saved limitations.",
+    };
+  }
+
+  if (input.sets !== null && (input.sets < 1 || input.sets > 6)) {
+    return {
+      ok: false,
+      reason: "I found a possible change, but the set count is outside the safe plan range.",
+    };
+  }
+
+  if (input.reps !== null && input.reps.length > 20) {
+    return {
+      ok: false,
+      reason: "I found a possible change, but the rep target is not specific enough.",
+    };
+  }
+
+  return { ok: true, reason: null };
+}
 
 export async function POST(request: Request) {
   try {
@@ -68,9 +155,23 @@ Provide a very brief, friendly assistantMessage (max 3 short sentences) confirmi
       schema: adjustmentSchema,
     });
 
-    console.log('LLM Adjustment Decision:', adjustment);
-
     if (adjustment.hasAdjustment && adjustment.dayId && adjustment.workoutExerciseId && adjustment.newExerciseId) {
+      const validation = validateAdjustment({
+        dayId: adjustment.dayId,
+        workoutExerciseId: adjustment.workoutExerciseId,
+        newExerciseId: adjustment.newExerciseId,
+        sets: adjustment.sets,
+        reps: adjustment.reps,
+        message,
+      });
+
+      if (!validation.ok) {
+        return NextResponse.json({
+          assistantMessage: validation.reason,
+          updatedPlan: null,
+        });
+      }
+
       const nextEx = seedExercises.find(e => e.id === adjustment.newExerciseId);
       const newName = nextEx ? `${nextEx.name} (${adjustment.targetMuscle || 'Muscle Group'})` : undefined;
 
@@ -84,11 +185,11 @@ Provide a very brief, friendly assistantMessage (max 3 short sentences) confirmi
         reps: adjustment.reps ?? undefined,
       });
 
-      console.log('Swap Result:', result ? 'Success' : 'Failed (ID mismatch)');
-
       return NextResponse.json({
-        assistantMessage: adjustment.assistantMessage,
-        updatedPlan: getCurrentPlan(),
+        assistantMessage: result
+          ? adjustment.assistantMessage
+          : "I could not safely apply that change to the current plan.",
+        updatedPlan: result ? getCurrentPlan() : null,
       });
     }
 

@@ -158,18 +158,26 @@ Track:
 
 Suggested default approach:
 
-- `Primary fast model`
-  - GPT-5 mini or Gemini 2.5 Flash
+- `Local development default`
+  - Ollama on a private Mac mini data plane
+- `Fast local model`
+  - llama3.2 for short coach copy and summaries
+- `Structured local model`
+  - gemma3:4b for onboarding extraction, plan drafts, and adjustment drafts
 - `Hard-case / quality model`
-  - stronger frontier model only on selective flows
-- `Local development / cheap experiments`
-  - Ollama with Qwen or Gemma family models
+  - stronger frontier model only on explicit selective flows
+- `No-key development`
+  - fixture provider for UI work and tests
 
 Suggested model routing:
-- onboarding extraction -> cheaper fast model
-- plan generation -> fast model with structured output
-- difficult re-planning / summary refinement -> stronger model
-- local prototyping -> open-source model
+- onboarding extraction -> local structured model
+- plan generation -> local structured model with validation
+- short coaching copy -> local fast model
+- difficult re-planning / summary refinement -> stronger model only when explicitly configured
+- tests and no-key prototyping -> fixture provider
+
+Security rule:
+- hosted providers must be explicitly selected; the app should not silently fall back from local Ollama to a cloud model
 
 ### Pose / Vision Stack
 
