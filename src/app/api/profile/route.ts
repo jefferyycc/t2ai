@@ -5,6 +5,7 @@ import {
   parseOnboardingMessage,
 } from "@/lib/profile";
 import { completeProfile, saveProfileDraft } from "@/lib/db";
+import { getServerUser, isAuthError } from "@/lib/auth";
 import { OnboardingDraft } from "@/lib/types";
 
 export async function GET() {
@@ -23,6 +24,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const user = await getServerUser(request);
     const body = (await request.json()) as {
       message: string;
       draft: OnboardingDraft;
@@ -32,19 +34,23 @@ export async function POST(request: Request) {
     const missingField = getMissingField(nextDraft);
 
     if (missingField) {
-      saveProfileDraft(nextDraft);
+      await saveProfileDraft(nextDraft, user);
     } else {
-      await completeProfile(nextDraft);
+      await completeProfile(nextDraft, user);
     }
 
     return NextResponse.json({
       draft: nextDraft,
       assistantMessage,
       missingField,
-      profileSaved: !missingField,
+      profileSaved: true,
       planGenerated: !missingField,
     });
   } catch (error) {
+    if (isAuthError(error)) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+
     const message =
       error instanceof Error
         ? error.message

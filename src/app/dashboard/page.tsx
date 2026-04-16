@@ -4,8 +4,8 @@ import { getDashboardSnapshot } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export default function DashboardPage() {
-  const { profile, plan } = getDashboardSnapshot();
+export default async function DashboardPage() {
+  const { profile, plan } = await getDashboardSnapshot();
 
   if (!plan || !profile.onboardingComplete) {
     return (

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { applyExerciseSwap, getAppState, getCurrentPlan } from "@/lib/db";
+import { getServerUser, isAuthError, UserContext } from "@/lib/auth";
 import { generateStructuredData } from "@/lib/ai";
 import { seedExercises } from "@/lib/data/exercises";
 import { z } from "zod";
@@ -21,13 +22,14 @@ function hasTrainingRedFlag(message: string) {
   );
 }
 
-function validateAdjustment(input: {
+async function validateAdjustment(input: {
   dayId: string;
   workoutExerciseId: string;
   newExerciseId: string;
   sets: number | null;
   reps: string | null;
   message: string;
+  user: UserContext;
 }) {
   if (hasTrainingRedFlag(input.message)) {
     return {
@@ -37,7 +39,7 @@ function validateAdjustment(input: {
     };
   }
 
-  const state = getAppState();
+  const state = await getAppState(input.user);
   const plan = state.currentPlan;
   const day = plan?.days.find((candidate) => candidate.id === input.dayId);
   const currentExercise = day?.exercises.find(
@@ -104,8 +106,9 @@ function validateAdjustment(input: {
 
 export async function POST(request: Request) {
   try {
+    const user = await getServerUser(request);
     const { message } = await request.json();
-    const plan = getCurrentPlan();
+    const plan = await getCurrentPlan(user);
     
     if (!plan) {
       return NextResponse.json({ error: "No active plan found." }, { status: 400 });
@@ -156,13 +159,14 @@ Provide a very brief, friendly assistantMessage (max 3 short sentences) confirmi
     });
 
     if (adjustment.hasAdjustment && adjustment.dayId && adjustment.workoutExerciseId && adjustment.newExerciseId) {
-      const validation = validateAdjustment({
+      const validation = await validateAdjustment({
         dayId: adjustment.dayId,
         workoutExerciseId: adjustment.workoutExerciseId,
         newExerciseId: adjustment.newExerciseId,
         sets: adjustment.sets,
         reps: adjustment.reps,
         message,
+        user,
       });
 
       if (!validation.ok) {
@@ -175,21 +179,24 @@ Provide a very brief, friendly assistantMessage (max 3 short sentences) confirmi
       const nextEx = seedExercises.find(e => e.id === adjustment.newExerciseId);
       const newName = nextEx ? `${nextEx.name} (${adjustment.targetMuscle || 'Muscle Group'})` : undefined;
 
-      const result = applyExerciseSwap({
-        dayId: adjustment.dayId,
-        workoutExerciseId: adjustment.workoutExerciseId,
-        newExerciseId: adjustment.newExerciseId,
-        reason: message,
-        newName: newName,
-        sets: adjustment.sets ?? undefined,
-        reps: adjustment.reps ?? undefined,
-      });
+      const result = await applyExerciseSwap(
+        {
+          dayId: adjustment.dayId,
+          workoutExerciseId: adjustment.workoutExerciseId,
+          newExerciseId: adjustment.newExerciseId,
+          reason: message,
+          newName: newName,
+          sets: adjustment.sets ?? undefined,
+          reps: adjustment.reps ?? undefined,
+        },
+        user,
+      );
 
       return NextResponse.json({
         assistantMessage: result
           ? adjustment.assistantMessage
           : "I could not safely apply that change to the current plan.",
-        updatedPlan: result ? getCurrentPlan() : null,
+        updatedPlan: result ? await getCurrentPlan(user) : null,
       });
     }
 
@@ -198,7 +205,10 @@ Provide a very brief, friendly assistantMessage (max 3 short sentences) confirmi
       updatedPlan: null,
     });
   } catch (error) {
-    console.error(error);
+    if (isAuthError(error)) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+
     return NextResponse.json(
       { error: "Failed to process adjustment. Please try again." },
       { status: 500 }

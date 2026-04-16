@@ -7,6 +7,7 @@ Files:
 - `product-overview.md`: product thesis, target user, core jobs, and scope boundaries
 - `system-design.md`: top-level architecture, layer-by-layer design, Mermaid diagrams, data flow, stack choices, free/open resources, and source-backed pricing/licensing notes
 - `ai-runtime-architecture.md`: provider-agnostic AI runtime design for Ollama, fixture mode, and later hosted frontier models
+- `milestone-1-persistence-auth-plan.md`: implementation plan for Supabase-backed profile, plan, and adjustment persistence
 
 Current direction:
 

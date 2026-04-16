@@ -10,7 +10,7 @@ export default async function WorkoutDayPage({
   params: Promise<{ dayId: string }>;
 }) {
   const { dayId } = await params;
-  const day = getWorkoutDay(dayId);
+  const day = await getWorkoutDay(dayId);
 
   if (!day) {
     return (

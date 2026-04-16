@@ -1,5 +1,13 @@
+import { getServerUser, UserContext } from "@/lib/auth";
 import { seedExercises, seedSubstitutions } from "@/lib/data/exercises";
 import { generateWorkoutPlan } from "@/lib/planner";
+import {
+  insertPlanUpdate,
+  insertTrainingPlan,
+  persistProfile,
+  readStoredTrainingState,
+  updateTrainingPlan,
+} from "@/lib/supabase-store";
 import {
   AppState,
   OnboardingDraft,
@@ -8,18 +16,12 @@ import {
   WorkoutDay,
 } from "@/lib/types";
 
-const DEMO_USER_ID = "demo-user";
-
-function createInitialState(): AppState {
+function createInitialState(user: UserContext): AppState {
   return {
-    user: {
-      id: DEMO_USER_ID,
-      email: "demo@fitloop.app",
-      createdAt: new Date().toISOString(),
-    },
+    user,
     profile: {
-      id: "demo-profile",
-      userId: DEMO_USER_ID,
+      id: `${user.id}-profile`,
+      userId: user.id,
       limitations: [],
       equipment: ["bodyweight", "dumbbells", "gym_machines"],
       onboardingComplete: false,
@@ -33,23 +35,51 @@ function createInitialState(): AppState {
 }
 
 declare global {
-  var __fitloopState: AppState | undefined;
+  var __fitloopStates: Map<string, AppState> | undefined;
 }
 
-function getState() {
-  if (!globalThis.__fitloopState) {
-    globalThis.__fitloopState = createInitialState();
+async function resolveUser(user?: UserContext) {
+  return user ?? getServerUser();
+}
+
+function getMemoryState(user: UserContext) {
+  if (!globalThis.__fitloopStates) {
+    globalThis.__fitloopStates = new Map<string, AppState>();
   }
 
-  return globalThis.__fitloopState;
+  const existing = globalThis.__fitloopStates.get(user.id);
+  if (existing) return existing;
+
+  const nextState = createInitialState(user);
+  globalThis.__fitloopStates.set(user.id, nextState);
+  return nextState;
 }
 
-export function getAppState() {
-  return getState();
+async function hydrateState(user: UserContext) {
+  const state = getMemoryState(user);
+  const stored = await readStoredTrainingState(user);
+
+  if (stored.profile) {
+    state.profile = stored.profile;
+  }
+
+  if (stored.currentPlan) {
+    state.currentPlan = stored.currentPlan;
+  }
+
+  if (stored.profile || stored.currentPlan) {
+    state.planUpdates = stored.planUpdates;
+  }
+
+  return state;
 }
 
-export function saveProfileDraft(draft: OnboardingDraft) {
-  const state = getState();
+export async function getAppState(user?: UserContext) {
+  return hydrateState(await resolveUser(user));
+}
+
+export async function saveProfileDraft(draft: OnboardingDraft, user?: UserContext) {
+  const state = await getAppState(user);
   state.profile = {
     ...state.profile,
     ...draft,
@@ -58,11 +88,13 @@ export function saveProfileDraft(draft: OnboardingDraft) {
     updatedAt: new Date().toISOString(),
   };
 
+  await persistProfile(state.profile);
+
   return state.profile;
 }
 
-export async function completeProfile(draft: OnboardingDraft) {
-  const state = getState();
+export async function completeProfile(draft: OnboardingDraft, user?: UserContext) {
+  const state = await getAppState(user);
   const profile: Profile = {
     ...state.profile,
     ...draft,
@@ -72,7 +104,10 @@ export async function completeProfile(draft: OnboardingDraft) {
   };
 
   state.profile = profile;
+  await persistProfile(profile);
+
   state.currentPlan = await generateWorkoutPlan(profile);
+  await insertTrainingPlan(state.currentPlan);
 
   return {
     profile: state.profile,
@@ -80,38 +115,46 @@ export async function completeProfile(draft: OnboardingDraft) {
   };
 }
 
-export async function generatePlanFromProfile() {
-  const state = getState();
+export async function generatePlanFromProfile(user?: UserContext) {
+  const state = await getAppState(user);
 
   if (!state.profile.onboardingComplete) {
     return null;
   }
 
   state.currentPlan = await generateWorkoutPlan(state.profile);
+  await insertTrainingPlan(state.currentPlan);
   return state.currentPlan;
 }
 
-export function getCurrentPlan() {
-  return getState().currentPlan;
+export async function getCurrentPlan(user?: UserContext) {
+  return (await getAppState(user)).currentPlan;
 }
 
-export function getWorkoutDay(dayId: string): WorkoutDay | null {
-  const plan = getState().currentPlan;
+export async function getWorkoutDay(
+  dayId: string,
+  user?: UserContext,
+): Promise<WorkoutDay | null> {
+  const plan = (await getAppState(user)).currentPlan;
   if (!plan) return null;
 
   return plan.days.find((day) => day.id === dayId) ?? null;
 }
 
-export function applyExerciseSwap(input: {
-  dayId: string;
-  workoutExerciseId: string;
-  newExerciseId: string;
-  reason: string;
-  newName?: string;
-  sets?: number;
-  reps?: string;
-}) {
-  const state = getState();
+export async function applyExerciseSwap(
+  input: {
+    dayId: string;
+    workoutExerciseId: string;
+    newExerciseId: string;
+    reason: string;
+    newName?: string;
+    sets?: number;
+    reps?: string;
+  },
+  user?: UserContext,
+) {
+  const resolvedUser = await resolveUser(user);
+  const state = await getAppState(resolvedUser);
   const plan = state.currentPlan;
   if (!plan) return null;
 
@@ -120,6 +163,7 @@ export function applyExerciseSwap(input: {
   );
   if (!nextExercise) return null;
 
+  let planUpdate: PlanUpdate | null = null;
   const updatedDays = plan.days.map((day) => {
     if (day.id !== input.dayId) return day;
 
@@ -139,7 +183,7 @@ export function applyExerciseSwap(input: {
           createdAt: new Date().toISOString(),
         };
 
-        state.planUpdates.unshift(update);
+        planUpdate = update;
 
         return {
           ...exercise,
@@ -154,17 +198,23 @@ export function applyExerciseSwap(input: {
     };
   });
 
+  if (!planUpdate) return null;
+
+  state.planUpdates.unshift(planUpdate);
   state.currentPlan = {
     ...plan,
     days: updatedDays,
     updatedAt: new Date().toISOString(),
   };
 
-  return getWorkoutDay(input.dayId);
+  await updateTrainingPlan(state.currentPlan);
+  await insertPlanUpdate(resolvedUser, planUpdate);
+
+  return getWorkoutDay(input.dayId, resolvedUser);
 }
 
-export function getDashboardSnapshot() {
-  const state = getState();
+export async function getDashboardSnapshot(user?: UserContext) {
+  const state = await getAppState(user);
 
   return {
     profile: state.profile,

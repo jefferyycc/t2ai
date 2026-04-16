@@ -1,15 +1,27 @@
 import { NextResponse } from "next/server";
 import { generatePlanFromProfile } from "@/lib/db";
+import { getServerUser, isAuthError } from "@/lib/auth";
 
-export async function POST() {
-  const plan = await generatePlanFromProfile();
+export async function POST(request: Request) {
+  try {
+    const user = await getServerUser(request);
+    const plan = await generatePlanFromProfile(user);
 
-  if (!plan) {
-    return NextResponse.json(
-      { error: "Complete onboarding before generating a plan." },
-      { status: 400 },
-    );
+    if (!plan) {
+      return NextResponse.json(
+        { error: "Complete onboarding before generating a plan." },
+        { status: 400 },
+      );
+    }
+
+    return NextResponse.json(plan);
+  } catch (error) {
+    if (isAuthError(error)) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+
+    const message =
+      error instanceof Error ? error.message : "Could not generate a plan.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  return NextResponse.json(plan);
 }
