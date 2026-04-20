@@ -30,9 +30,11 @@ Out of scope for this pass:
 The server owns all writes.
 
 Browser code never receives:
-- `SUPABASE_SERVICE_ROLE_KEY`
 - raw database credentials
 - direct Ollama host configuration
+
+The app data path does not need a Supabase service-role key. API persistence uses the
+user's bearer token so database row-level security remains active.
 
 Browser code may later receive:
 - Supabase anon key for login UI
@@ -52,11 +54,13 @@ Behavior:
 
 ### Supabase Mode
 
-Used when `SUPABASE_URL` and a server key are configured.
+Used when `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and a valid Supabase bearer token are present.
 
 Behavior:
 - API requests may resolve a Supabase user from `Authorization: Bearer <access_token>`
-- requests without a valid token fall back to the demo user unless `AUTH_REQUIRED=true`
+- invalid bearer tokens return `401`
+- requests without a token use explicit demo mode unless `AUTH_REQUIRED=true`
+- demo-mode traffic never writes to Supabase
 - profile drafts are upserted
 - completed profiles generate and persist a new plan row
 - accepted swaps and plan adjustments update the current plan JSON and append an adjustment event
@@ -76,6 +80,7 @@ For the portfolio demo:
 - keep a local demo user working with no signup
 - support bearer-token Supabase auth in API routes
 - defer full login UI until after the Today coach loop is useful
+- keep the server-rendered web UI explicitly in demo mode until cookie/session auth is added
 
 Reasoning:
 - this keeps the project usable for development and interviews

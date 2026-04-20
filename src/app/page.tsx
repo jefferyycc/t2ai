@@ -10,12 +10,16 @@ export default function HomePage() {
         <div className="hero-copy">
           <p className="eyebrow">Train Train(T2ai)</p>
           <h1 className="section-title-xl">
-            AI fitness coach that builds your plan, analyzes your form, and
-            adapts as you improve.
+            Tell me what I should do today.
           </h1>
           <p className="hero-description">
-            Personalized plans, built by AI-flexible, adaptive, and easy to
-            customize.
+            A local-first AI strength coach for plans, swaps, and daily
+            adjustments. Squat form analysis is the next golden demo, not the
+            first screen.
+          </p>
+          <p className="mode-banner">
+            Demo mode uses local memory. Connect with a Supabase bearer token
+            for persisted API state.
           </p>
           <Link className="text-link" href="/dashboard">
             Go to Dashboard

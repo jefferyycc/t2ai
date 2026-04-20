@@ -209,6 +209,7 @@ Provide a very brief, friendly assistantMessage (max 3 short sentences) confirmi
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
+    console.error("Failed to process adjustment", error);
     return NextResponse.json(
       { error: "Failed to process adjustment. Please try again." },
       { status: 500 }

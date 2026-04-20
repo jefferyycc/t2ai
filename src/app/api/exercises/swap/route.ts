@@ -34,6 +34,19 @@ export async function POST(request: Request) {
         user,
       );
 
+      if (!updatedDay) {
+        return NextResponse.json(
+          {
+            assistantMessage:
+              "I could not apply that substitute because it does not match your saved plan constraints.",
+            suggestions: [],
+            updatedDay: null,
+            applied: false,
+          },
+          { status: 400 },
+        );
+      }
+
       return NextResponse.json({
         assistantMessage:
           "The workout day has been updated. The substitute is now part of your plan.",
@@ -65,8 +78,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
-    const message =
-      error instanceof Error ? error.message : "Could not process the swap.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("Could not process the swap", error);
+    return NextResponse.json(
+      { error: "Could not process the swap." },
+      { status: 500 },
+    );
   }
 }

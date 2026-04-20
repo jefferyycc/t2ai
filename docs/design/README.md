@@ -16,3 +16,4 @@ Current direction:
 - AI is used for explanation, structured extraction, retrieval-backed reasoning, and feedback
 - deterministic logic owns safety, scoring, and workout adaptation rules
 - local development uses Ollama on a private Mac mini data plane, with explicit cloud provider opt-in
+- the web UI is currently an explicit demo surface; Supabase-authenticated persistence is available for bearer-token API clients until login UI is added

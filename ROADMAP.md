@@ -12,7 +12,7 @@ Build `t2ai` into a phone-first AI fitness coach that can:
 
 - generate personalized workout plans
 - adapt plans over time based on history and constraints
-- analyze uploaded squat videos with real pose/biomechanics logic
+- later analyze uploaded squat videos with real pose/biomechanics logic as the golden demo
 - use retrieval-grounded AI instead of prompt-only responses
 - demonstrate production AI engineering patterns: evals, observability, background jobs, structured outputs, and cost-aware model routing
 
@@ -28,11 +28,11 @@ It is a small but real AI system with four loops:
 2. `Planning loop`
    System generates a grounded plan using exercise knowledge, user history, and constraints.
 
-3. `Analysis loop`
-   User uploads a squat video and receives computed form feedback.
+3. `Readiness loop`
+   User provides time, soreness, and readiness context and gets a useful today recommendation.
 
 4. `Adaptation loop`
-   Future plans and swaps incorporate prior performance, movement issues, and adherence.
+   Future plans and swaps incorporate prior performance, readiness, and adherence.
 
 ## Target Architecture
 
@@ -48,8 +48,7 @@ Mobile should support:
 - onboarding
 - plan viewing
 - exercise swap requests
-- video upload / recording
-- squat feedback history
+- daily readiness check-ins
 - progress tracking
 
 ### 2. Application Backend
@@ -65,7 +64,7 @@ Responsibilities:
 - user/profile management
 - plan persistence
 - swap and adjustment endpoints
-- job orchestration for video analysis
+- job orchestration for later video analysis
 - history and reporting APIs
 
 ### 3. AI / ML Layer
@@ -112,6 +111,8 @@ Use cases:
 - future coaching summaries
 
 #### C. Squat Analysis Pipeline
+
+This is the golden demo after the Today coach loop is durable, not Milestone 1 scope.
 
 Pipeline:
 - upload video

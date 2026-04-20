@@ -13,12 +13,12 @@ export async function GET() {
     const assistantMessage = await buildInitialOnboardingMessage();
     return NextResponse.json({ assistantMessage });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "The AI coach could not create the onboarding message.";
+    console.error("Failed to create onboarding message", error);
 
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: "The AI coach could not create the onboarding message." },
+      { status: 500 },
+    );
   }
 }
 
@@ -51,11 +51,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
-    const message =
-      error instanceof Error
-        ? error.message
-        : "The AI coach could not generate an onboarding reply.";
+    console.error("Failed to generate onboarding reply", error);
 
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: "The AI coach could not generate an onboarding reply." },
+      { status: 500 },
+    );
   }
 }

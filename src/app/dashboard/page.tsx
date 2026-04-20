@@ -1,11 +1,34 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { DashboardOverview } from "@/components/dashboard-overview";
 import { getDashboardSnapshot } from "@/lib/db";
+import { getServerUserFromHeaders, isAuthError } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const { profile, plan } = await getDashboardSnapshot();
+  let snapshot: Awaited<ReturnType<typeof getDashboardSnapshot>>;
+  try {
+    const user = await getServerUserFromHeaders(await headers());
+    snapshot = await getDashboardSnapshot(user);
+  } catch (error) {
+    if (!isAuthError(error)) throw error;
+
+    return (
+      <main className="page-shell">
+        <section className="surface-card">
+          <p className="eyebrow">Dashboard</p>
+          <h1 className="section-title-lg">Sign in required</h1>
+          <p className="muted-copy">{error.message}</p>
+          <Link className="secondary-button" href="/">
+            Back to onboarding
+          </Link>
+        </section>
+      </main>
+    );
+  }
+
+  const { profile, plan } = snapshot;
 
   if (!plan || !profile.onboardingComplete) {
     return (
@@ -33,6 +56,11 @@ export default async function DashboardPage() {
         <p className="muted-copy">
           Review today&apos;s session, the full weekly split, and the current
           training profile driving the plan.
+        </p>
+        <p className="mode-banner">
+          Demo mode: this web UI uses local in-memory state. Supabase-backed
+          persistence is available through bearer-token API requests until login
+          UI is added.
         </p>
       </section>
       <DashboardOverview plan={plan} profile={profile} />

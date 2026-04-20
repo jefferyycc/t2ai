@@ -20,7 +20,7 @@ That means `t2ai` should help users:
 - get a personalized training plan
 - adapt a workout when recovery, time, soreness, illness, or injury changes
 - receive grounded coaching feedback instead of generic chat
-- optionally review lift technique from uploaded video
+- later, review squat technique from uploaded video as the golden form-analysis demo
 
 ## Target User
 
@@ -105,9 +105,11 @@ The system returns:
 - grounded modifications
 - rationale
 
-### 4. Technique Feedback Loop
+### 4. Squat Technique Feedback Loop
 
-The user uploads a squat or other lift video.
+This is intentionally deferred until the daily coach loop is real.
+
+The user uploads a squat video.
 
 The system:
 
@@ -123,12 +125,13 @@ The system:
 - web app with mobile-friendly UX
 - profile and plan generation
 - daily readiness-aware workout adjustment
-- workout history and adherence tracking
-- retrieval-backed coaching layer
-- basic video form analysis for one lift
+- persisted profile, current plan, and plan adjustments
+- small retrieval-backed coaching layer
+- evaluation harness for onboarding, planning, and swaps
 
 ### v2
 
+- real squat form analysis for one golden demo lift
 - native mobile app
 - Apple Health integration
 - one workout tracker integration

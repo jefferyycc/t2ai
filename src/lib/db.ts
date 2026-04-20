@@ -2,11 +2,12 @@ import { getServerUser, UserContext } from "@/lib/auth";
 import { seedExercises, seedSubstitutions } from "@/lib/data/exercises";
 import { generateWorkoutPlan } from "@/lib/planner";
 import {
-  insertPlanUpdate,
+  applyPlanUpdate,
   insertTrainingPlan,
+  isSupabasePersistenceConfigured,
   persistProfile,
   readStoredTrainingState,
-  updateTrainingPlan,
+  saveCompletedProfileAndPlan,
 } from "@/lib/supabase-store";
 import {
   AppState,
@@ -48,7 +49,10 @@ function getMemoryState(user: UserContext) {
   }
 
   const existing = globalThis.__fitloopStates.get(user.id);
-  if (existing) return existing;
+  if (existing) {
+    existing.user = user;
+    return existing;
+  }
 
   const nextState = createInitialState(user);
   globalThis.__fitloopStates.set(user.id, nextState);
@@ -59,16 +63,20 @@ async function hydrateState(user: UserContext) {
   const state = getMemoryState(user);
   const stored = await readStoredTrainingState(user);
 
+  if (isSupabasePersistenceConfigured(user)) {
+    const initialState = createInitialState(user);
+    state.profile = stored.profile ?? initialState.profile;
+    state.currentPlan = stored.currentPlan;
+    state.planUpdates = stored.planUpdates;
+    return state;
+  }
+
   if (stored.profile) {
     state.profile = stored.profile;
   }
 
   if (stored.currentPlan) {
     state.currentPlan = stored.currentPlan;
-  }
-
-  if (stored.profile || stored.currentPlan) {
-    state.planUpdates = stored.planUpdates;
   }
 
   return state;
@@ -79,8 +87,9 @@ export async function getAppState(user?: UserContext) {
 }
 
 export async function saveProfileDraft(draft: OnboardingDraft, user?: UserContext) {
-  const state = await getAppState(user);
-  state.profile = {
+  const resolvedUser = await resolveUser(user);
+  const state = await getAppState(resolvedUser);
+  const nextProfile = {
     ...state.profile,
     ...draft,
     limitations: draft.limitations ?? state.profile.limitations,
@@ -88,13 +97,15 @@ export async function saveProfileDraft(draft: OnboardingDraft, user?: UserContex
     updatedAt: new Date().toISOString(),
   };
 
-  await persistProfile(state.profile);
+  await persistProfile(resolvedUser, nextProfile);
+  state.profile = nextProfile;
 
   return state.profile;
 }
 
 export async function completeProfile(draft: OnboardingDraft, user?: UserContext) {
-  const state = await getAppState(user);
+  const resolvedUser = await resolveUser(user);
+  const state = await getAppState(resolvedUser);
   const profile: Profile = {
     ...state.profile,
     ...draft,
@@ -103,11 +114,11 @@ export async function completeProfile(draft: OnboardingDraft, user?: UserContext
     updatedAt: new Date().toISOString(),
   };
 
-  state.profile = profile;
-  await persistProfile(profile);
+  const plan = await generateWorkoutPlan(profile);
+  await saveCompletedProfileAndPlan(resolvedUser, profile, plan);
 
-  state.currentPlan = await generateWorkoutPlan(profile);
-  await insertTrainingPlan(state.currentPlan);
+  state.profile = profile;
+  state.currentPlan = plan;
 
   return {
     profile: state.profile,
@@ -116,15 +127,18 @@ export async function completeProfile(draft: OnboardingDraft, user?: UserContext
 }
 
 export async function generatePlanFromProfile(user?: UserContext) {
-  const state = await getAppState(user);
+  const resolvedUser = await resolveUser(user);
+  const state = await getAppState(resolvedUser);
 
   if (!state.profile.onboardingComplete) {
     return null;
   }
 
-  state.currentPlan = await generateWorkoutPlan(state.profile);
-  await insertTrainingPlan(state.currentPlan);
-  return state.currentPlan;
+  const plan = await generateWorkoutPlan(state.profile);
+  await insertTrainingPlan(resolvedUser, plan);
+
+  state.currentPlan = plan;
+  return plan;
 }
 
 export async function getCurrentPlan(user?: UserContext) {
@@ -171,6 +185,19 @@ export async function applyExerciseSwap(
       ...day,
       exercises: day.exercises.map((exercise) => {
         if (exercise.id !== input.workoutExerciseId) return exercise;
+        if (nextExercise.category !== exercise.category) return exercise;
+
+        const hasEquipment = nextExercise.equipment.some((item) =>
+          state.profile.equipment.includes(item),
+        );
+        const blockedByLimitation =
+          nextExercise.avoidFor.some((item) =>
+            state.profile.limitations.includes(item),
+          ) ||
+          (state.profile.limitations.includes("shoulders") &&
+            nextExercise.category === "push_vertical");
+
+        if (!hasEquipment || blockedByLimitation) return exercise;
 
         const update: PlanUpdate = {
           id: crypto.randomUUID(),
@@ -200,15 +227,16 @@ export async function applyExerciseSwap(
 
   if (!planUpdate) return null;
 
-  state.planUpdates.unshift(planUpdate);
-  state.currentPlan = {
+  const nextPlan = {
     ...plan,
     days: updatedDays,
     updatedAt: new Date().toISOString(),
   };
 
-  await updateTrainingPlan(state.currentPlan);
-  await insertPlanUpdate(resolvedUser, planUpdate);
+  await applyPlanUpdate(resolvedUser, nextPlan, planUpdate);
+
+  state.currentPlan = nextPlan;
+  state.planUpdates.unshift(planUpdate);
 
   return getWorkoutDay(input.dayId, resolvedUser);
 }

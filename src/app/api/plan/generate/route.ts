@@ -20,8 +20,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
-    const message =
-      error instanceof Error ? error.message : "Could not generate a plan.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("Could not generate a plan", error);
+    return NextResponse.json(
+      { error: "Could not generate a plan." },
+      { status: 500 },
+    );
   }
 }

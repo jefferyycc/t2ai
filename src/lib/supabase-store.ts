@@ -1,5 +1,5 @@
 import { PlanUpdate, Profile, WorkoutPlan } from "@/lib/types";
-import { UserContext } from "@/lib/auth";
+import { isSupabaseUser, UserContext } from "@/lib/auth";
 
 type ProfileRow = {
   id: string;
@@ -42,16 +42,28 @@ export type StoredTrainingState = {
   planUpdates: PlanUpdate[];
 };
 
+export class SupabasePersistenceError extends Error {
+  constructor(message = "Supabase persistence is unavailable.") {
+    super(message);
+    this.name = "SupabasePersistenceError";
+  }
+}
+
 function getSupabaseUrl() {
   return process.env.SUPABASE_URL?.replace(/\/$/, "") ?? null;
 }
 
-function getSupabaseServerKey() {
-  return process.env.SUPABASE_SERVICE_ROLE_KEY ?? null;
+function getSupabaseAnonKey() {
+  return process.env.SUPABASE_ANON_KEY ?? null;
 }
 
-export function isSupabasePersistenceConfigured() {
-  return Boolean(getSupabaseUrl() && getSupabaseServerKey());
+export function isSupabasePersistenceConfigured(user?: UserContext) {
+  return Boolean(
+    user &&
+      isSupabaseUser(user) &&
+      getSupabaseUrl() &&
+      getSupabaseAnonKey(),
+  );
 }
 
 function toProfile(row: ProfileRow): Profile {
@@ -128,21 +140,22 @@ function encodeFilter(value: string) {
 }
 
 async function requestSupabase<T>(
+  user: UserContext,
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
   const supabaseUrl = getSupabaseUrl();
-  const serverKey = getSupabaseServerKey();
+  const anonKey = getSupabaseAnonKey();
 
-  if (!supabaseUrl || !serverKey) {
-    throw new Error("Supabase persistence is not configured.");
+  if (!supabaseUrl || !anonKey || !isSupabaseUser(user)) {
+    throw new SupabasePersistenceError("Supabase persistence is not configured.");
   }
 
   const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
     ...init,
     headers: {
-      apikey: serverKey,
-      Authorization: `Bearer ${serverKey}`,
+      apikey: anonKey,
+      Authorization: `Bearer ${user.accessToken}`,
       "Content-Type": "application/json",
       ...(init.headers ?? {}),
     },
@@ -151,9 +164,13 @@ async function requestSupabase<T>(
 
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(
-      `Supabase request failed (${response.status} ${response.statusText}): ${body}`,
+    console.error(
+      "Supabase request failed",
+      response.status,
+      response.statusText,
+      body,
     );
+    throw new SupabasePersistenceError();
   }
 
   if (response.status === 204) {
@@ -166,16 +183,18 @@ async function requestSupabase<T>(
 export async function readStoredTrainingState(
   user: UserContext,
 ): Promise<StoredTrainingState> {
-  if (!isSupabasePersistenceConfigured()) {
+  if (!isSupabasePersistenceConfigured(user)) {
     return { profile: null, currentPlan: null, planUpdates: [] };
   }
 
   const userId = encodeFilter(user.id);
   const [profileRows, planRows] = await Promise.all([
     requestSupabase<ProfileRow[]>(
+      user,
       `profiles?user_id=eq.${userId}&select=*&limit=1`,
     ),
     requestSupabase<PlanRow[]>(
+      user,
       `training_plans?user_id=eq.${userId}&select=*&order=updated_at.desc&limit=1`,
     ),
   ]);
@@ -183,7 +202,8 @@ export async function readStoredTrainingState(
   const currentPlan = planRows[0]?.plan_json ?? null;
   const planUpdates = currentPlan
     ? await requestSupabase<PlanUpdateRow[]>(
-        `plan_adjustments?plan_id=eq.${encodeFilter(
+        user,
+        `plan_adjustments?user_id=eq.${userId}&plan_id=eq.${encodeFilter(
           currentPlan.id,
         )}&select=*&order=created_at.desc&limit=20`,
       )
@@ -196,10 +216,10 @@ export async function readStoredTrainingState(
   };
 }
 
-export async function persistProfile(profile: Profile) {
-  if (!isSupabasePersistenceConfigured()) return;
+export async function persistProfile(user: UserContext, profile: Profile) {
+  if (!isSupabasePersistenceConfigured(user)) return;
 
-  await requestSupabase<ProfileRow[]>("profiles?on_conflict=id", {
+  await requestSupabase<ProfileRow[]>(user, "profiles?on_conflict=id", {
     method: "POST",
     headers: {
       Prefer: "resolution=merge-duplicates,return=representation",
@@ -208,10 +228,10 @@ export async function persistProfile(profile: Profile) {
   });
 }
 
-export async function insertTrainingPlan(plan: WorkoutPlan) {
-  if (!isSupabasePersistenceConfigured()) return;
+export async function insertTrainingPlan(user: UserContext, plan: WorkoutPlan) {
+  if (!isSupabasePersistenceConfigured(user)) return;
 
-  await requestSupabase<PlanRow[]>("training_plans", {
+  await requestSupabase<PlanRow[]>(user, "training_plans", {
     method: "POST",
     headers: {
       Prefer: "return=representation",
@@ -220,11 +240,30 @@ export async function insertTrainingPlan(plan: WorkoutPlan) {
   });
 }
 
-export async function updateTrainingPlan(plan: WorkoutPlan) {
-  if (!isSupabasePersistenceConfigured()) return;
+export async function saveCompletedProfileAndPlan(
+  user: UserContext,
+  profile: Profile,
+  plan: WorkoutPlan,
+) {
+  if (!isSupabasePersistenceConfigured(user)) return;
 
-  await requestSupabase<PlanRow[]>(
-    `training_plans?id=eq.${encodeFilter(plan.id)}`,
+  await requestSupabase<void>(user, "rpc/save_completed_profile_and_plan", {
+    method: "POST",
+    body: JSON.stringify({
+      profile_payload: toProfileRow(profile),
+      plan_payload: toPlanRow(plan),
+    }),
+  });
+}
+
+export async function updateTrainingPlan(user: UserContext, plan: WorkoutPlan) {
+  if (!isSupabasePersistenceConfigured(user)) return;
+
+  const rows = await requestSupabase<PlanRow[]>(
+    user,
+    `training_plans?id=eq.${encodeFilter(plan.id)}&user_id=eq.${encodeFilter(
+      user.id,
+    )}`,
     {
       method: "PATCH",
       headers: {
@@ -233,12 +272,32 @@ export async function updateTrainingPlan(plan: WorkoutPlan) {
       body: JSON.stringify(toPlanRow(plan)),
     },
   );
+
+  if (rows.length === 0) {
+    throw new SupabasePersistenceError("The training plan no longer exists.");
+  }
+}
+
+export async function applyPlanUpdate(
+  user: UserContext,
+  plan: WorkoutPlan,
+  update: PlanUpdate,
+) {
+  if (!isSupabasePersistenceConfigured(user)) return;
+
+  await requestSupabase<void>(user, "rpc/apply_plan_update", {
+    method: "POST",
+    body: JSON.stringify({
+      plan_payload: toPlanRow(plan),
+      update_payload: toPlanUpdateRow(user, update),
+    }),
+  });
 }
 
 export async function insertPlanUpdate(user: UserContext, update: PlanUpdate) {
-  if (!isSupabasePersistenceConfigured()) return;
+  if (!isSupabasePersistenceConfigured(user)) return;
 
-  await requestSupabase<PlanUpdateRow[]>("plan_adjustments", {
+  await requestSupabase<PlanUpdateRow[]>(user, "plan_adjustments", {
     method: "POST",
     headers: {
       Prefer: "return=representation",
