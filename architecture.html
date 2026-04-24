@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>t2ai — System Architecture</title>
+<link rel="preconnect" href="https://rsms.me/" />
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+<style>
+  :root {
+    --ink: #0f1419;
+    --canvas: #ffffff;
+    --paper: #fafbfc;
+    --teal: #167c80;
+    --teal-dark: #0f5a5d;
+    --teal-light: #e6f5f5;
+    --g600: #4b5563;
+    --g500: #6b7280;
+    --g400: #9ca3af;
+    --g200: #e5e7eb;
+    --g100: #f3f4f6;
+    --g50: #f9fafb;
+    --success: #16a34a;
+    --success-bg: #dcfce7;
+    --warn: #d97706;
+    --warn-bg: #fef3c7;
+    --ring: rgba(0, 0, 0, 0.08) 0px 0px 0px 1px;
+    --card: rgba(0, 0, 0, 0.08) 0px 0px 0px 1px,
+      rgba(0, 0, 0, 0.04) 0px 2px 4px,
+      rgba(0, 0, 0, 0.02) 0px 8px 16px -4px;
+    --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --mono: "JetBrains Mono", "SF Mono", SFMono-Regular, Consolas, Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font);
+    color: var(--ink);
+    background: var(--paper);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 64px 24px 96px; }
+
+  header { margin-bottom: 64px; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--g500);
+    margin-bottom: 12px;
+  }
+  h1 {
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 1.0;
+    letter-spacing: -0.06em;
+    margin: 0 0 16px;
+  }
+  .lede {
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--g600);
+    max-width: 640px;
+    margin: 0;
+  }
+
+  h2 {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.04em;
+    margin: 64px 0 8px;
+  }
+  h2 + .section-sub {
+    color: var(--g600);
+    font-size: 15px;
+    margin: 0 0 32px;
+    max-width: 720px;
+  }
+
+  h3 {
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+    margin: 0 0 8px;
+  }
+
+  /* Architecture stack */
+  .stack {
+    display: grid;
+    gap: 16px;
+  }
+
+  .layer {
+    background: var(--canvas);
+    box-shadow: var(--card);
+    border-radius: 12px;
+    padding: 20px 24px;
+    position: relative;
+  }
+  .layer-head {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--g200);
+  }
+  .layer-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--teal);
+  }
+  .layer-title {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .layer-role {
+    font-size: 13px;
+    color: var(--g500);
+    margin-left: auto;
+  }
+
+  .nodes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+
+  .node {
+    background: var(--canvas);
+    box-shadow: var(--ring);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 78px;
+  }
+  .node.teal {
+    box-shadow: 0px 0px 0px 2px var(--teal);
+    background: #f0fafa;
+  }
+  .node.planned {
+    background: var(--g50);
+    box-shadow: rgba(0,0,0,0.08) 0px 0px 0px 1px, inset 0 0 0 9999px rgba(255,255,255,0);
+  }
+  .node-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .node-meta {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--g500);
+  }
+  .node-desc {
+    font-size: 13px;
+    color: var(--g600);
+    line-height: 1.45;
+  }
+  .pill {
+    display: inline-block;
+    border-radius: 9999px;
+    padding: 2px 10px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .pill.built { background: var(--success-bg); color: var(--success); }
+  .pill.partial { background: var(--warn-bg); color: var(--warn); }
+  .pill.planned { background: var(--g100); color: var(--g500); }
+  .pill.teal { background: var(--teal-light); color: var(--teal); }
+
+  .arrow {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 28px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--g400);
+    position: relative;
+  }
+  .arrow::before, .arrow::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--g200);
+    margin: 0 12px;
+  }
+
+  /* Sequence diagram */
+  .flows {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 920px) {
+    .flows { grid-template-columns: 1fr; }
+  }
+
+  .flow {
+    background: var(--canvas);
+    box-shadow: var(--card);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .flow ol {
+    padding-left: 0;
+    margin: 16px 0 0;
+    list-style: none;
+    counter-reset: step;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .flow li {
+    counter-increment: step;
+    padding: 10px 0 10px 40px;
+    position: relative;
+    border-top: 1px solid var(--g100);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .flow li:first-child { border-top: none; }
+  .flow li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 10px;
+    width: 24px;
+    height: 24px;
+    border-radius: 9999px;
+    background: var(--teal-light);
+    color: var(--teal);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .flow li strong {
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .flow li .actor {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--g500);
+    margin-right: 8px;
+  }
+
+  /* 5W grid */
+  .w-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .w-card {
+    background: var(--canvas);
+    box-shadow: var(--card);
+    border-radius: 12px;
+    padding: 20px 24px;
+  }
+  .w-card .eyebrow {
+    color: var(--teal);
+    margin-bottom: 8px;
+  }
+  .w-card p {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--g600);
+    margin: 0 0 8px;
+  }
+  .w-card p strong { color: var(--ink); font-weight: 500; }
+
+  /* Status bar */
+  .status {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin: 0 0 24px;
+    padding: 16px 20px;
+    background: var(--canvas);
+    box-shadow: var(--ring);
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--g600);
+  }
+  .status-item { display: flex; align-items: center; gap: 8px; }
+  .dot {
+    width: 8px; height: 8px; border-radius: 9999px; display: inline-block;
+  }
+  .dot.built { background: var(--success); }
+  .dot.partial { background: var(--warn); }
+  .dot.planned { background: var(--g400); }
+
+  footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--g200);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--g500);
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">System Design · 2026-04-24</div>
+  <h1>t2ai<br/>architecture</h1>
+  <p class="lede">
+    An AI fitness coach built as a hybrid system: deterministic code owns
+    state, safety, and adaptation; AI owns extraction, explanation, and
+    summarization. The cleanest mental model is
+    <em>state → deterministic decision → AI explanation → user action.</em>
+  </p>
+</header>
+
+<section>
+  <h2>Five layers</h2>
+  <p class="section-sub">
+    Reading top to bottom is the request path. Each layer has a single
+    responsibility and a narrow contract with the layer above and below.
+  </p>
+
+  <div class="status">
+    <div class="status-item"><span class="dot built"></span> Built today</div>
+    <div class="status-item"><span class="dot partial"></span> Partially built</div>
+    <div class="status-item"><span class="dot planned"></span> Planned</div>
+  </div>
+
+  <div class="stack">
+
+    <div class="layer">
+      <div class="layer-head">
+        <span class="layer-num">Layer 01</span>
+        <span class="layer-title">Experience</span>
+        <span class="layer-role">What the user sees</span>
+      </div>
+      <div class="nodes">
+        <div class="node">
+          <span class="pill built">Built</span>
+          <span class="node-name">Onboarding chat</span>
+          <span class="node-desc">src/components/onboarding-chat.tsx</span>
+        </div>
+        <div class="node">
+          <span class="pill built">Built</span>
+          <span class="node-name">Dashboard</span>
+          <span class="node-desc">app/dashboard · readiness check-in</span>
+        </div>
+        <div class="node">
+          <span class="pill built">Built</span>
+          <span class="node-name">Workout day view</span>
+          <span class="node-desc">app/workouts/[dayId] · swap chat</span>
+        </div>
+        <div class="node">
+          <span class="pill built">Built</span>
+          <span class="node-name">Exercise detail</span>
+          <span class="node-desc">app/[exerciseId]</span>
+        </div>
+        <div class="node">
+          <span class="pill partial">Exploration</span>
+          <span class="node-name">Squat / squat-ai</span>
+          <span class="node-desc">Pose-analysis sandbox</span>
+        </div>
+        <div class="node">
+          <span class="pill planned">Dropped</span>
+          <span class="node-name">Expo mobile</span>
+          <span class="node-desc">Deferred — web-only, responsive design</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow">request · JSON · cookies</div>
+
+    <div class="layer">
+      <div class="layer-head">
+        <span class="layer-num">Layer 02</span>
+        <span class="layer-title">Application</span>
+        <span class="layer-role">Next.js route handlers</span>
+      </div>
+      <div class="nodes">
+        <div class="node">
+          <span class="pill built">Built</span>
+          <span class="node-name">/api/profile</span>
+          <span class="node-desc">Onboarding parse + persist</span>
+        </div>
+        <div class="node">
+          <span class="pill built">Built</span>
+          <span class="node-name">/api/plan/generate</span>
+          <span class="node-desc">Build structured plan from profile</span>
+        </div>
+        <div class="node">
+          <span class="pill built">Built</span>
+          <span class="node-name">/api/plan/adjust</span>
+          <span class="node-desc">Chat-driven swap w/ red-flag gate</span>
+        </div>
+        <div class="node">
+          <span class="pill built">Built</span>
+          <span class="node-name">/api/readiness</span>
+          <span class="node-desc">Morning check-in scoring</span>
+        </div>
+        <div class="node">
+          <span class="pill built">Built</span>
+          <span class="node-name">/api/exercises/swap</span>
+          <span class="node-desc">Rule-based substitutions</span>
+        </div>
+        <div class="node">
+          <span class="pill planned">Planned</span>
+          <span class="node-name">/api/video/analyze</span>
+          <span class="node-desc">Enqueues pose pipeline</span>
+        </div>
+      </div>
+      <div style="margin-top:12px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--g500);">
+        Contract · Auth (UserContext) → Zod validate → orchestrate → persist
+      </div>
+    </div>
+
+    <div class="arrow">3 fan-outs · parallel-friendly</div>
+
+    <div class="nodes" style="grid-template-columns:repeat(3,minmax(0,1fr));">
+      <div class="layer" style="padding:20px;">
+        <div class="layer-head" style="margin-bottom:12px;padding-bottom:8px;">
+          <span class="layer-num">Layer 03</span>
+          <span class="layer-title" style="font-size:16px;">Decision</span>
+        </div>
+        <div style="font-size:13px;color:var(--g600);margin-bottom:12px;line-height:1.5;">
+          Deterministic core. Easier to test, explain, and audit than letting an LLM improvise training rules.
+        </div>
+        <div class="nodes" style="grid-template-columns:1fr;gap:8px;">
+          <div class="node"><span class="node-name">readiness.ts</span><span class="node-desc">soreness + energy → green/yellow/red</span></div>
+          <div class="node"><span class="node-name">planner.ts</span><span class="node-desc">filter by equipment + limitations</span></div>
+          <div class="node"><span class="node-name">substitutions.ts</span><span class="node-desc">rule-based swap suggestions</span></div>
+          <div class="node"><span class="pill planned">Planned</span><span class="node-name">Form scoring</span><span class="node-desc">depth · heel · knee tracking</span></div>
+        </div>
+      </div>
+
+      <div class="layer" style="padding:20px;">
+        <div class="layer-head" style="margin-bottom:12px;padding-bottom:8px;">
+          <span class="layer-num">Layer 04</span>
+          <span class="layer-title" style="font-size:16px;">AI Runtime</span>
+        </div>
+        <div style="font-size:13px;color:var(--g600);margin-bottom:12px;line-height:1.5;">
+          Provider adapter. Every call is wrapped in a timeout and a Zod schema.
+        </div>
+        <div class="nodes" style="grid-template-columns:1fr;gap:8px;">
+          <div class="node teal"><span class="pill teal">Default</span><span class="node-name">ollama</span><span class="node-desc">llama3.2 · gemma3:4b · localhost only</span></div>
+          <div class="node"><span class="node-name">fixture</span><span class="node-desc">deterministic, no-key, for tests</span></div>
+          <div class="node"><span class="node-name">gemini</span><span class="node-desc">explicit opt-in · 2.5-flash</span></div>
+          <div class="node"><span class="pill partial">M3 — Next</span><span class="node-name">pgvector retrieval</span><span class="node-desc">Ollama embeddings · knowledge chunks</span></div>
+        </div>
+      </div>
+
+      <div class="layer" style="padding:20px;">
+        <div class="layer-head" style="margin-bottom:12px;padding-bottom:8px;">
+          <span class="layer-num">Layer 05</span>
+          <span class="layer-title" style="font-size:16px;">Data & Platform</span>
+        </div>
+        <div style="font-size:13px;color:var(--g600);margin-bottom:12px;line-height:1.5;">
+          Supabase is the backbone. Storage + jobs + observability layer in over time.
+        </div>
+        <div class="nodes" style="grid-template-columns:1fr;gap:8px;">
+          <div class="node"><span class="pill partial">Dual-mode</span><span class="node-name">Supabase Postgres</span><span class="node-desc">supabase-store.ts · falls back to in-memory</span></div>
+          <div class="node"><span class="pill partial">Dual-mode</span><span class="node-name">Auth</span><span class="node-desc">demo cookie today · Supabase bearer</span></div>
+          <div class="node"><span class="pill planned">Planned</span><span class="node-name">Supabase Storage</span><span class="node-desc">video uploads</span></div>
+          <div class="node"><span class="pill planned">Planned</span><span class="node-name">Inngest · MediaPipe</span><span class="node-desc">async pose pipeline</span></div>
+          <div class="node"><span class="pill built">Built</span><span class="node-name">Promptfoo evals</span><span class="node-desc">28 cases · 4 datasets · fixture provider</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <h2>Two flows that define the product</h2>
+  <p class="section-sub">
+    Everything else is a variation of these. Reading them end-to-end shows
+    exactly where the LLM is trusted and where it isn't.
+  </p>
+
+  <div class="flows">
+
+    <div class="flow">
+      <div class="eyebrow" style="color:var(--teal);">Flow A</div>
+      <h3>Daily coaching</h3>
+      <p style="font-size:13.5px;color:var(--g600);margin:4px 0 0;">
+        User opens the dashboard. We recommend today's workout, adapted to
+        how they feel, with a short explanation.
+      </p>
+      <ol>
+        <li><span class="actor">UI</span><strong>Fetch state</strong> from /api/profile and /api/readiness.</li>
+        <li><span class="actor">API</span>Load profile, plan, latest readiness from <strong>Postgres</strong>.</li>
+        <li><span class="actor">Decision</span>assessReadiness() → <strong>green / yellow / red</strong>.</li>
+        <li><span class="actor">Decision</span>Adjust volume + intensity based on level.</li>
+        <li><span class="actor">Retrieval</span>Pull relevant cues + memory (pgvector, <em>planned</em>).</li>
+        <li><span class="actor">AI</span>Ask LLM for a concise coach message (Zod-typed).</li>
+        <li><span class="actor">API</span>Validate output → safety gate → return to UI.</li>
+        <li><span class="actor">UI</span>Render plan + explanation + confidence badge.</li>
+      </ol>
+    </div>
+
+    <div class="flow">
+      <div class="eyebrow" style="color:var(--teal);">Flow B</div>
+      <h3>Form analysis (planned)</h3>
+      <p style="font-size:13.5px;color:var(--g600);margin:4px 0 0;">
+        User uploads a squat video. We extract pose, score the reps
+        deterministically, and let the LLM translate numbers into cues.
+      </p>
+      <ol>
+        <li><span class="actor">UI</span>Upload lift video → /api/video/analyze.</li>
+        <li><span class="actor">API</span>Save file to <strong>Supabase Storage</strong>.</li>
+        <li><span class="actor">Jobs</span>Inngest enqueues an analysis run.</li>
+        <li><span class="actor">Vision</span>MediaPipe Pose Landmarker → landmarks per frame.</li>
+        <li><span class="actor">Decision</span>Compute rep metrics: depth, heel lift, knee tracking.</li>
+        <li><span class="actor">Decision</span>Score each rep. <em>This stays deterministic.</em></li>
+        <li><span class="actor">AI</span>LLM summarizes structured metrics into 2–3 cues.</li>
+        <li><span class="actor">DB</span>Persist metrics, score, summary. UI polls for result.</li>
+      </ol>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <h2>Why · What · When · How · Where</h2>
+  <p class="section-sub">
+    The design decisions behind the diagram, in one screen.
+  </p>
+
+  <div class="w-grid">
+
+    <div class="w-card">
+      <div class="eyebrow">What</div>
+      <h3>A hybrid AI product</h3>
+      <p>
+        <strong>t2ai</strong> is an AI fitness coach that plans your workouts,
+        adapts them to how you feel, and (next) grades your form from video.
+      </p>
+      <p>
+        The system is intentionally <strong>not</strong> a chatbot wrapper.
+        LLMs do what they're good at — parsing messy language, drafting,
+        summarizing. Rules do everything safety-critical.
+      </p>
+    </div>
+
+    <div class="w-card">
+      <div class="eyebrow">Why</div>
+      <h3>Rules decide, AI explains</h3>
+      <p>
+        Handing a model full control over volume, intensity, or injury
+        avoidance is how AI products earn their reputation for being confidently wrong.
+      </p>
+      <p>
+        Every LLM call in this repo goes through <strong>timeout → Zod →
+        deterministic safety gate → persist.</strong> Model output is
+        untrusted until it passes those checks.
+      </p>
+    </div>
+
+    <div class="w-card">
+      <div class="eyebrow">When</div>
+      <h3>Five milestones</h3>
+      <p>
+        <strong>M1 — Done:</strong> persistence, today dashboard, readiness check-in, safe swap, Ollama coaching.
+      </p>
+      <p>
+        <strong>M2 — Done:</strong> 28 Promptfoo eval cases across 4 datasets, fixture provider routing.
+      </p>
+      <p>
+        <strong>M3 — Next:</strong> pgvector knowledge chunks, Ollama embeddings, retrieval-grounded explanations.
+      </p>
+      <p>
+        <strong>M4 — Planned:</strong> MediaPipe squat analysis, deterministic scoring, LLM coaching cues, adaptation hook.
+      </p>
+      <p>
+        <strong>M5 — Planned:</strong> README, architecture update, eval results, demo script, portfolio polish.
+      </p>
+    </div>
+
+    <div class="w-card">
+      <div class="eyebrow">How</div>
+      <h3>Control plane + data plane</h3>
+      <p>
+        The Next.js app is the <strong>control plane</strong>: auth, validation,
+        orchestration, persistence. It never leaks model URLs to the browser.
+      </p>
+      <p>
+        The <strong>data plane</strong> is swappable:
+        <code style="font-family:var(--mono);font-size:12px;background:var(--g100);padding:1px 6px;border-radius:4px;">fixture</code>
+        for tests,
+        <code style="font-family:var(--mono);font-size:12px;background:var(--g100);padding:1px 6px;border-radius:4px;">ollama</code>
+        on a private Mac mini for dev,
+        <code style="font-family:var(--mono);font-size:12px;background:var(--g100);padding:1px 6px;border-radius:4px;">gemini</code>
+        for hosted demos. Cloud is never a silent fallback.
+      </p>
+    </div>
+
+    <div class="w-card">
+      <div class="eyebrow">Where</div>
+      <h3>Runs here today</h3>
+      <p>
+        <strong>Web:</strong> Vercel (planned) · Next.js 16 App Router · React 19 · Tailwind v4.
+      </p>
+      <p>
+        <strong>Backend:</strong> Next.js route handlers in <code style="font-family:var(--mono);font-size:12px;background:var(--g100);padding:1px 6px;border-radius:4px;">src/app/api/*</code>
+        · Zod at every boundary.
+      </p>
+      <p>
+        <strong>Data:</strong> Supabase Postgres (migrations in <code style="font-family:var(--mono);font-size:12px;background:var(--g100);padding:1px 6px;border-radius:4px;">supabase/migrations</code>)
+        with in-memory fallback for local dev without a key.
+      </p>
+      <p>
+        <strong>AI:</strong> Vercel AI SDK · Ollama on localhost or
+        <code style="font-family:var(--mono);font-size:12px;background:var(--g100);padding:1px 6px;border-radius:4px;">*.local</code>
+        (public URLs are refused in <code style="font-family:var(--mono);font-size:12px;background:var(--g100);padding:1px 6px;border-radius:4px;">src/lib/ai.ts</code>).
+      </p>
+    </div>
+
+    <div class="w-card">
+      <div class="eyebrow">Trade-off</div>
+      <h3>What this buys you</h3>
+      <p>
+        The layered boundary is the whole point. You can swap the model,
+        the database, or the retrieval store one at a time without touching
+        the others.
+      </p>
+      <p>
+        It costs more plumbing up front than a "call the API and render"
+        chatbot — and pays it back the first time a model hallucinates a
+        swap you can't actually do.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <h2>Milestone tracker</h2>
+  <p class="section-sub">
+    Unified from the original product roadmap, the 5-milestone portfolio plan,
+    and this architecture document. Mobile was dropped. Langfuse deferred in
+    favor of Promptfoo. Squat analysis and adaptation combined into one golden demo.
+  </p>
+
+  <div class="stack" style="gap:12px;">
+
+    <div class="layer" style="padding:16px 20px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+        <span class="pill built">Done</span>
+        <span style="font-size:16px;font-weight:600;letter-spacing:-0.02em;">M1 — Real Today Coach</span>
+      </div>
+      <div class="nodes" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Supabase persistence</span><span class="node-meta">RLS · dual-mode</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Profile + plan tables</span><span class="node-meta">Zod types · migrations</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Today dashboard</span><span class="node-meta">Deterministic day selection</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Readiness check-in</span><span class="node-meta">Time · soreness · energy</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Safe exercise swap</span><span class="node-meta">Category · equipment · limits</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Ollama coaching copy</span><span class="node-meta">Fixture + gemini fallback</span></div>
+      </div>
+    </div>
+
+    <div class="layer" style="padding:16px 20px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+        <span class="pill built">Done</span>
+        <span style="font-size:16px;font-weight:600;letter-spacing:-0.02em;">M2 — Evals + Guardrails</span>
+      </div>
+      <div class="nodes" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Promptfoo framework</span><span class="node-meta">Config · fixture provider</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Onboarding evals</span><span class="node-meta">7 extraction cases</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Plan generation evals</span><span class="node-meta">8 structure cases</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Swap safety evals</span><span class="node-meta">7 red-flag cases</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Readiness gating evals</span><span class="node-meta">5 pure function cases</span></div>
+      </div>
+    </div>
+
+    <div class="layer" style="padding:16px 20px;box-shadow:0px 0px 0px 2px var(--teal),rgba(0,0,0,0.04) 0px 2px 4px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+        <span class="pill teal">Next</span>
+        <span style="font-size:16px;font-weight:600;letter-spacing:-0.02em;">M3 — Small RAG</span>
+      </div>
+      <div class="nodes" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">pgvector extension</span><span class="node-meta">knowledge_chunks table</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Ollama embeddings</span><span class="node-meta">nomic-embed-text</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Seed script</span><span class="node-meta">Chunks → vectors → Supabase</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Retrieval in planner</span><span class="node-meta">Replace hardcoded knowledge</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">RAG debug logger</span><span class="node-meta">Chunks · scores · prompts</span></div>
+      </div>
+    </div>
+
+    <div class="layer" style="padding:16px 20px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+        <span class="pill planned">Planned</span>
+        <span style="font-size:16px;font-weight:600;letter-spacing:-0.02em;">M4 — Squat Golden Demo</span>
+      </div>
+      <div class="nodes" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">MediaPipe pose</span><span class="node-meta">Browser-side landmarks</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Deterministic metrics</span><span class="node-meta">Depth · heel · knee · tempo</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">LLM coaching cues</span><span class="node-meta">Metrics → 2-3 sentence summary</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Adaptation hook</span><span class="node-meta">Feedback → future plan notes</span></div>
+      </div>
+    </div>
+
+    <div class="layer" style="padding:16px 20px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+        <span class="pill planned">Planned</span>
+        <span style="font-size:16px;font-weight:600;letter-spacing:-0.02em;">M5 — Portfolio Polish</span>
+      </div>
+      <div class="nodes" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Clean README</span><span class="node-meta">Setup · screenshots · overview</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Architecture update</span><span class="node-meta">All layers → Built status</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Eval results</span><span class="node-meta">Promptfoo report + screenshots</span></div>
+        <div class="node" style="min-height:auto;padding:10px 12px;"><span class="node-name">Demo script</span><span class="node-meta">Walkthrough for interviewers</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="margin-top:24px;padding:16px 20px;background:var(--canvas);box-shadow:var(--ring);border-radius:10px;">
+    <div class="eyebrow" style="margin-bottom:8px;">Decisions</div>
+    <div style="font-size:13px;color:var(--g600);line-height:1.6;">
+      <strong style="color:var(--ink);">Evals before RAG</strong> — need measurement in place before adding retrieval.
+      <strong style="color:var(--ink);">Promptfoo over Langfuse</strong> — purpose-built for LLM evals, no hosted backend.
+      <strong style="color:var(--ink);">No mobile</strong> — dilutes the AI portfolio story.
+      <strong style="color:var(--ink);">Combined squat demo</strong> — analysis + adaptation in one milestone for a tighter demo moment.
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>t2ai · system design</span>
+  <span>Sourced from ROADMAP.md + docs/design + src/</span>
+</footer>
+
+</div>
+</body>
+</html>

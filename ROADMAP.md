@@ -1,538 +1,207 @@
-# t2ai Product Architecture and Roadmap
+# t2ai Milestones
 
-This document turns `t2ai` from a hackathon prototype into a concrete AI product plan.
+Unified execution plan for the t2ai AI strength coaching portfolio project. Aggregated from the original product roadmap, the 5-milestone portfolio plan, and the system architecture document.
 
-Assumption:
-- Available time is roughly `10-20 hours/week`, with occasional heavier weekend pushes.
-- Goal is not only to ship a useful MVP, but also to make the project a strong portfolio piece for AI engineer / applied AI / agentic systems roles.
+## Assumptions
 
-## Product Goal
+- Available time: roughly 10-20 hours/week.
+- Primary goal: a strong portfolio piece for AI engineer / applied AI / agentic systems roles.
+- Web-only (no mobile app). Phone-first UX is achieved through responsive design, not Expo.
+- Observability: Promptfoo for evals. Langfuse/OTel deferred unless time allows.
+- LLMs draft and explain. Deterministic code decides safety, validity, and persistence.
 
-Build `t2ai` into a phone-first AI fitness coach that can:
+## Portfolio story
 
-- generate personalized workout plans
-- adapt plans over time based on history and constraints
-- later analyze uploaded squat videos with real pose/biomechanics logic as the golden demo
-- use retrieval-grounded AI instead of prompt-only responses
-- demonstrate production AI engineering patterns: evals, observability, background jobs, structured outputs, and cost-aware model routing
+I built a local-first AI strength coach. LLMs handle language and structured drafts, deterministic systems own safety and adaptation, MediaPipe handles pose signals, Supabase persists user state and vector knowledge, and evals measure whether the AI layer behaves.
 
-## Product Vision
+## Milestone overview
 
-The strongest version of `t2ai` is not just "chat for workouts."
+| # | Name | Status | Key deliverables |
+|---|------|--------|-----------------|
+| 1 | Real Today Coach | Done | Supabase persistence, profile/plan tables, today dashboard, readiness check-in, safe exercise swap, Ollama coaching copy |
+| 2 | Evals + Guardrails | Done | 28 Promptfoo eval cases, fixture provider, 4 eval datasets, safety guardrail coverage |
+| 3 | Small RAG | Next | pgvector knowledge chunks, Ollama embeddings, retrieval-grounded plan/swap explanations, developer debug logs |
+| 4 | Squat Golden Demo | Planned | Browser-side MediaPipe, deterministic rep metrics, LLM feedback summary, feedback influences future plan notes |
+| 5 | Portfolio Polish | Planned | Clean README, architecture diagram, eval results, latency/cost notes, demo script |
 
-It is a small but real AI system with four loops:
+---
 
-1. `Profile loop`
-   User provides goals, schedule, equipment, and limitations.
+## Milestone 1: Real Today Coach — done
 
-2. `Planning loop`
-   System generates a grounded plan using exercise knowledge, user history, and constraints.
+Goal: move from demo prototype to a product that remembers who the user is.
 
-3. `Readiness loop`
-   User provides time, soreness, and readiness context and gets a useful today recommendation.
+### Deliverables
 
-4. `Adaptation loop`
-   Future plans and swaps incorporate prior performance, readiness, and adherence.
+- Supabase persistence with RLS policies on all tables (profiles, training_plans, plan_adjustments, readiness_checkins).
+- Profile and plan tables matching TypeScript types, with dual-mode fallback (in-memory when Supabase is not configured).
+- Today dashboard showing the current workout deterministically, profile summary, and weekly split.
+- Readiness check-in: time of day, soreness 1-10, energy 1-10. Pure `assessReadiness()` function gates to green/yellow/red. API route, Supabase migration, dashboard UI card.
+- Safe exercise swap with deterministic validation: category match, equipment compatibility, limitation constraints, red-flag symptom detection.
+- Ollama coaching copy via provider-routed AI runtime (ollama/fixture/gemini) with Zod validation, timeouts, and fixture fallback for tests.
 
-## Target Architecture
+### Key files
 
-### 1. Client Layer
+- `supabase/migrations/0001_training_state.sql`, `0002_readiness_checkins.sql`
+- `src/lib/readiness.ts`, `src/lib/db.ts`, `src/lib/supabase-store.ts`
+- `src/lib/planner.ts`, `src/lib/substitutions.ts`, `src/lib/ai.ts`
+- `src/app/dashboard/page.tsx`, `src/components/dashboard-overview.tsx`, `src/components/readiness-checkin.tsx`
+- `src/app/api/readiness/route.ts`, `src/app/api/exercises/swap/route.ts`, `src/app/api/plan/adjust/route.ts`
 
-Primary client:
-- `Expo React Native` mobile app
+### Architecture layers touched
 
-Secondary client:
-- existing `Next.js` app as web dashboard, landing page, admin, and debugging surface
+- Layer 01 (Experience): Dashboard, readiness check-in card
+- Layer 02 (Application): /api/readiness, /api/exercises/swap, /api/plan/adjust
+- Layer 03 (Decision): readiness.ts, planner.ts, substitutions.ts
+- Layer 04 (AI Runtime): ai.ts with ollama/fixture/gemini providers
+- Layer 05 (Data): Supabase Postgres with in-memory fallback
 
-Mobile should support:
-- onboarding
-- plan viewing
-- exercise swap requests
-- daily readiness check-ins
-- progress tracking
+---
 
-### 2. Application Backend
+## Milestone 2: Evals + Guardrails — done
 
-Recommended stack:
-- `Next.js` for main product APIs and web UI
-- `Supabase Auth` for authentication
-- `Postgres` for application data
-- `Supabase Storage` for video assets
-- `Inngest` for async jobs and workflows
+Goal: prove the AI layer behaves. Make quality measurable before adding RAG.
 
-Responsibilities:
-- user/profile management
-- plan persistence
-- swap and adjustment endpoints
-- job orchestration for later video analysis
-- history and reporting APIs
+### Deliverables
 
-### 3. AI / ML Layer
+- 28 eval cases across 4 datasets using Promptfoo.
+- Onboarding extraction (7 cases): tests keyword extraction from natural language user messages covering explicit profiles, vague input, edge cases.
+- Plan generation (8 cases): tests structural correctness — day counts, exercise caps for short sessions, equipment/limitation filtering, goal-appropriate volume.
+- Swap safety (7 cases): tests red-flag guardrails — sharp pain, chest pain, dizzy, injured, shortness of breath all rejected; valid requests pass.
+- Readiness gating (5 cases): pure function tests for `assessReadiness()`, no server needed. Updated eval case count: 1 additional onboarding case added during setup.
+- Custom fixture provider (`evals/providers/fixture-provider.mjs`) routing to app API endpoints.
+- Provider stubs for Ollama and Gemini ready to uncomment for cross-provider comparison.
 
-This should be split into three subsystems:
+### Key files
 
-#### A. Planner
+- `evals/promptfooconfig.yaml`
+- `evals/providers/fixture-provider.mjs`
+- `evals/datasets/onboarding-extraction.yaml`
+- `evals/datasets/plan-generation.yaml`
+- `evals/datasets/swap-safety.yaml`
+- `evals/datasets/readiness-gating.yaml`
+- `evals/README.md`
 
-Inputs:
-- profile
-- equipment
-- limitations
-- goal
-- workout history
-- prior feedback
+### How to run
 
-Outputs:
-- structured workout plan
-- exercise rationale
-- suggested progressions or regressions
+```bash
+# Terminal 1: start dev server in fixture mode
+AI_PROVIDER=fixture npm run dev
 
-Design:
-- retrieval-backed prompts
-- structured outputs with validation
-- business-rule checks before saving
+# Terminal 2: run evals
+npm run eval
 
-#### B. Retrieval / Knowledge Layer
+# View results
+npm run eval:view
+```
 
-Knowledge sources:
-- exercise library
-- substitution rules
-- injury / limitation notes
-- equipment compatibility
-- coaching cues
-- user history
-
-Storage:
-- `Postgres + pgvector`
-
-Use cases:
-- grounded plan generation
-- safer exercise swaps
-- personalized explanations
-- future coaching summaries
-
-#### C. Squat Analysis Pipeline
-
-This is the golden demo after the Today coach loop is durable, not Milestone 1 scope.
-
-Pipeline:
-- upload video
-- create analysis job
-- extract landmarks frame-by-frame
-- compute biomechanics metrics
-- segment reps
-- score movement quality
-- generate concise coaching feedback from structured metrics
-
-Initial version:
-- uploaded videos only
-- side-view squat only
-- single person in frame
-- one completed analysis per video
-
-### 4. Observability and Evaluation
-
-Recommended tools:
-- `Langfuse` for tracing prompts, latency, costs, outputs, and failures
-- internal eval scripts/datasets for plan quality and swap quality
-
-Track:
-- prompt versions
-- retrieved documents
-- schema-validation failures
-- token usage
-- latency
-- user-visible failure rate
-- pose-analysis confidence
-
-## Recommended Technology Choices
-
-### Product Stack
-
-- `Web`: Next.js
-- `Mobile`: Expo React Native
-- `Auth/DB/Storage`: Supabase
-- `Async workflows`: Inngest
-- `Vector search`: pgvector
-- `Tracing / AI observability`: Langfuse
-
-### LLM Stack
-
-Suggested default approach:
-
-- `Local development default`
-  - Ollama on a private Mac mini data plane
-- `Fast local model`
-  - llama3.2 for short coach copy and summaries
-- `Structured local model`
-  - gemma3:4b for onboarding extraction, plan drafts, and adjustment drafts
-- `Hard-case / quality model`
-  - stronger frontier model only on explicit selective flows
-- `No-key development`
-  - fixture provider for UI work and tests
-
-Suggested model routing:
-- onboarding extraction -> local structured model
-- plan generation -> local structured model with validation
-- short coaching copy -> local fast model
-- difficult re-planning / summary refinement -> stronger model only when explicitly configured
-- tests and no-key prototyping -> fixture provider
-
-Security rule:
-- hosted providers must be explicitly selected; the app should not silently fall back from local Ollama to a cloud model
-
-### Pose / Vision Stack
-
-Recommended build path:
-
-- `v1`
-  - MediaPipe Pose Landmarker for cross-platform extraction
-- `v2`
-  - Apple Vision / native iOS optimization if you want better iPhone experience
-- `v3`
-  - custom trained classifier on landmarks and derived features
-
-Do not start with an end-to-end custom ML model.
-Start with:
-- pose landmarks
-- rule-based features
-- confidence thresholds
-- human-readable scoring
-
-## Data Model
-
-Core tables to add:
-
-- `users`
-- `profiles`
-- `training_plans`
-- `training_days`
-- `training_exercises`
-- `exercise_catalog`
-- `exercise_substitutions`
-- `knowledge_chunks`
-- `video_uploads`
-- `pose_runs`
-- `rep_metrics`
-- `feedback_reports`
-- `plan_adjustments`
-- `llm_traces`
-- `eval_runs`
-
-Vector-enabled tables:
-- `knowledge_chunks`
-- optionally `feedback_reports`
-
-## MVP Definition
-
-The first real MVP is complete when:
-
-1. a user can sign in
-2. create a profile
-3. get a grounded, persisted workout plan
-4. upload a squat video from a phone
-5. receive real computed squat feedback
-6. have future plan recommendations influenced by prior feedback
-
-If one of those is missing, the product is still in prototype mode.
-
-## Execution Strategy For 10-20 Hours/Week
-
-With your time budget, the project should be run as a staged product build over roughly `10-14 weeks`.
-
-Cadence recommendation:
-- Weeknights: implementation and debugging
-- Weekends: integration, architecture cleanup, demo polish, docs
-
-Keep each milestone independently demoable.
-
-## Milestones
+### Decision: Promptfoo over Langfuse
 
-## Milestone 0: Stabilize The Existing Prototype
-
-Goal:
-- make the current repo easier to evolve safely
-
-Tasks:
-- replace the boilerplate README with a real product README
-- add setup instructions and environment variables
-- add lint/build/test scripts
-- clean duplicate or placeholder routes where appropriate
-- document current architecture and limitations
-
-Deliverable:
-- a clearer, runnable project with baseline documentation
-
-Estimated effort:
-- `1 week`
-
-## Milestone 1: Persistence and Auth
-
-Goal:
-- move from demo state to actual product state
-
-Tasks:
-- integrate Supabase
-- add auth
-- replace in-memory global state with Postgres-backed data
-- persist profile, plan, and plan updates
-- store plan history for later personalization
-
-Deliverable:
-- users can return and still have their profile and plan
-
-Estimated effort:
-- `1-2 weeks`
-
-## Milestone 2: Retrieval-Grounded Planner
-
-Goal:
-- upgrade the planner from prompt-only to AI-system quality
-
-Tasks:
-- create exercise catalog schema
-- create substitution and limitation rules
-- add knowledge chunks for exercise descriptions, safety notes, and coaching cues
-- add retrieval layer with pgvector
-- generate plan via structured output
-- add validation step before persisting
-
-Deliverable:
-- planner can justify choices from grounded data and follow constraints more reliably
-
-Estimated effort:
-- `1-2 weeks`
-
-## Milestone 3: Evaluation and Observability
-
-Goal:
-- make AI quality measurable
-
-Tasks:
-- integrate Langfuse or equivalent tracing
-- log prompt, response, retrieved context, model, cost, and latency
-- build small eval datasets for:
-  - onboarding extraction
-  - plan quality
-  - exercise swaps
-- define quality rubrics
-
-Deliverable:
-- you can explain how the AI system is monitored and improved over time
-
-Estimated effort:
-- `1 week`
-
-## Milestone 4: Mobile App Foundation
-
-Goal:
-- create the right user surface for video-first fitness UX
-
-Tasks:
-- bootstrap Expo React Native app
-- connect auth
-- add profile screen
-- add plan screen
-- add upload/record video flow
-- share backend with web app
-
-Deliverable:
-- mobile app can onboard a user and display a plan
-
-Estimated effort:
-- `1-2 weeks`
-
-## Milestone 5: Real Squat Analysis v1
-
-Goal:
-- replace the mock with real analysis
-
-Tasks:
-- define accepted video constraints
-  - side view
-  - single user
-  - visible full body
-- upload videos to storage
-- run background analysis job
-- extract landmarks
-- compute:
-  - rep count
-  - squat depth
-  - knee tracking proxy
-  - heel rise proxy
-  - torso lean
-  - tempo
-- define confidence thresholds
-- generate structured report
-- convert report to user-facing coaching summary
-
-Deliverable:
-- uploaded squat videos produce real feedback with measurable features
-
-Estimated effort:
-- `2-3 weeks`
-
-## Milestone 6: Adaptation Loop
-
-Goal:
-- make analysis influence future plans
-
-Tasks:
-- save squat feedback history
-- map movement issues to training adjustments
-- surface coach notes in future plans
-- add regression and progression suggestions
-- update swap logic based on history
-
-Deliverable:
-- `t2ai` becomes an adaptive coach, not just a static planner
-
-Estimated effort:
-- `1-2 weeks`
-
-## Milestone 7: Product Polish and Portfolio Layer
-
-Goal:
-- make the project impressive for jobs and demos
-
-Tasks:
-- add demo dataset and test users
-- create polished landing/demo flow
-- add architecture diagram
-- add eval screenshots / metrics
-- add TestFlight build
-- record short demo video
-- update resume/project bullets
-
-Deliverable:
-- portfolio-ready applied AI product case study
-
-Estimated effort:
-- `1-2 weeks`
-
-## Suggested 12-Week Roadmap
-
-### Weeks 1-2
-
-Focus:
-- Milestone 0
-- start Milestone 1
-
-Target outputs:
-- new README
-- environment setup
-- project cleanup
-- database schema draft
-- auth/persistence started
-
-### Weeks 3-4
-
-Focus:
-- finish Milestone 1
-- complete Milestone 2
-
-Target outputs:
-- real persistence
-- exercise catalog and rules
-- retrieval-backed planner
-
-### Weeks 5-6
-
-Focus:
-- Milestone 3
-- start Milestone 4
-
-Target outputs:
-- tracing
-- basic evals
-- Expo app shell
-- auth and plan screen on mobile
-
-### Weeks 7-9
-
-Focus:
-- Milestone 5
-
-Target outputs:
-- upload pipeline
-- background jobs
-- pose extraction
-- first real squat scoring
-
-### Weeks 10-11
-
-Focus:
-- Milestone 6
-
-Target outputs:
-- feedback history
-- adaptive planning hooks
-- improved swaps based on analysis
-
-### Week 12
-
-Focus:
-- Milestone 7
-
-Target outputs:
-- polished demo
-- architecture docs
-- portfolio story
-- resume updates
-
-## Work Prioritization
-
-If time gets tight, prioritize in this order:
-
-1. persistence + auth
-2. retrieval-grounded planner
-3. real squat analysis
-4. mobile app
-5. adaptation loop
-6. polish
-
-If time is abundant, add:
-
-- workout completion logging
-- adherence-based recommendations
-- live camera analysis
-- exercise library expansion
-- personalized progression engine
-- multi-lift analysis beyond squat
-
-## What This Project Should Demonstrate
-
-If executed well, `t2ai` should show these AI-job-relevant skills:
-
-- AI product design
-- agentic workflow design
-- RAG architecture
-- structured outputs and tool use
-- LLM evaluation
-- multimodal ML integration
-- asynchronous workflow orchestration
-- observability and tracing
-- mobile + backend full-stack execution
-- cost/performance model routing
-
-## Immediate Next Steps
-
-Recommended next implementation steps inside this repo:
-
-1. replace `README.md`
-2. add a `docs/` or keep this roadmap as the source of truth
-3. choose Supabase as persistence/auth layer
-4. define the first production schema
-5. decide whether mobile starts in a sibling app or monorepo package
-6. implement persistence before touching squat analysis
-
-## Practical Scope Rule
-
-For every new feature, ask:
-
-- does this make the product more real for users?
-- does this better demonstrate applied AI engineering skill?
-- can this be finished in a 1-2 week milestone?
-
-If the answer is no, defer it.
-
-The project will become much stronger by finishing a narrow real system than by expanding into too many half-built AI ideas.
+The original ROADMAP.md and architecture.html called for Langfuse tracing. We chose Promptfoo instead because it is purpose-built for LLM evals, generates portfolio-friendly HTML reports, and does not require a hosted tracing backend. Langfuse can be added later for runtime observability if needed.
+
+---
+
+## Milestone 3: Small RAG — next
+
+Goal: ground coaching explanations in retrieved knowledge rather than relying on prompt-only context.
+
+### Deliverables
+
+- Supabase pgvector extension enabled. `knowledge_chunks` table with vector(384) embeddings, chunk types (exercise_cue, substitution, limitation, planning), and metadata.
+- Ollama embeddings via `nomic-embed-text` with fixture fallback (deterministic zero-vector for tests).
+- Seed script that reads existing planning-knowledge chunks, exercise notes, and substitution reasons, generates embeddings, and upserts into the knowledge_chunks table.
+- Retrieval function: embed query → cosine similarity search → return ranked chunks.
+- Planner integration: replace hardcoded `formatPlanningKnowledge()` with RAG retrieval. Fall back to deterministic knowledge when pgvector is not configured.
+- Swap/adjust integration: inject retrieved cue/limitation chunks into coaching copy prompts.
+- Developer debug logger: records which chunks were retrieved, similarity scores, and which prompt they were injected into. Server console output in dev mode.
+
+### Design constraints
+
+- RAG enhances explanations but never overrides the deterministic safety layer. The planner still repairs plans the same way.
+- Embedding provider follows the same routing pattern as ai.ts: ollama default, fixture for tests.
+- The existing planning-knowledge.ts continues to work as fallback when Supabase/pgvector is unavailable.
+
+### Key files to create
+
+- `supabase/migrations/0003_knowledge_vectors.sql`
+- `src/lib/embeddings.ts`
+- `src/lib/knowledge-store.ts`
+- `src/lib/rag-logger.ts`
+- `scripts/seed-knowledge.ts`
+
+### Key files to modify
+
+- `src/lib/planner.ts` — use RAG retrieval with fallback
+- `src/lib/substitutions.ts` — enrich swap replies with retrieved cues
+- `src/app/api/plan/adjust/route.ts` — inject retrieved context into LLM prompt
+- `.env.example` — add OLLAMA_EMBED_MODEL, KNOWLEDGE_RAG_ENABLED
+
+---
+
+## Milestone 4: Squat Golden Demo — planned
+
+Goal: demonstrate multimodal AI integration with a real analysis pipeline. This is the portfolio centerpiece.
+
+### Deliverables
+
+- Browser-side MediaPipe Pose Landmarker extracting landmarks from uploaded squat video (side view, single person).
+- Deterministic rep metrics computed from landmarks: rep count, squat depth, knee tracking proxy, heel rise proxy, torso lean, tempo.
+- Confidence thresholds and a three-tier scoring system (good/needs work/poor) matching the design system.
+- LLM summary: Ollama generates 2-3 coaching cues from the structured metrics only (no raw video access). Deterministic scores are the source of truth.
+- Saved feedback report persisted to Supabase.
+- Adaptation hook: feedback report can influence future plan notes (e.g., "squat depth was limited last session — consider box squats"). This closes the adaptation loop without requiring a full separate milestone.
+
+### Design constraints
+
+- Pose extraction and scoring stay deterministic. The LLM only translates numbers into language.
+- Side-view squat only. Single person in frame. One analysis per video.
+- Start with uploaded videos, not live camera.
+
+### Architecture layers touched
+
+- Layer 01 (Experience): Upload UI, results view with score badges
+- Layer 02 (Application): /api/video/analyze
+- Layer 03 (Decision): Rep metric computation, scoring rules
+- Layer 04 (AI Runtime): LLM summarizes structured metrics into cues
+- Layer 05 (Data): Supabase Storage for videos, pose_runs and rep_metrics tables
+
+---
+
+## Milestone 5: Portfolio Polish — planned
+
+Goal: make the project impressive for interviews and demos.
+
+### Deliverables
+
+- Clean README with setup instructions, architecture overview, and screenshots.
+- Architecture diagram (update architecture.html with current state — all planned items should reflect built status).
+- Eval results: screenshots of Promptfoo report, pass/fail summary, cross-provider comparison if Ollama/Gemini runs exist.
+- Latency/cost note: fixture vs Ollama vs Gemini comparison for key flows (plan generation, coaching copy, embeddings).
+- Demo script: step-by-step walkthrough that an interviewer can follow or watch in a recorded video.
+- Update ROADMAP.md status column to reflect final state.
+
+---
+
+## Decisions log
+
+| Decision | Chosen | Alternatives considered | Rationale |
+|----------|--------|------------------------|-----------|
+| Eval tooling | Promptfoo | Langfuse, Vitest, Braintrust | Purpose-built for LLM evals, generates HTML reports, no hosted backend needed |
+| Milestone order | Persistence → Evals → RAG | RAG → Evals (ROADMAP.md original) | Need evals in place to measure whether RAG improves output quality |
+| Mobile | Skip (web-only) | Expo React Native | Dilutes AI portfolio story, adds 1-2 weeks without demonstrating AI skills |
+| Squat scope | Combined golden demo | Split into analysis + adaptation | Tighter demo moment, closes adaptation loop in one milestone |
+| Readiness check-in | Simple gating (green/yellow/red) | LLM-explained adjustments | Fastest to build, demonstrates deterministic safety without LLM dependency |
+| Embedding model | Ollama nomic-embed-text | Gemini embeddings | Consistent with local-first story, fully offline |
+
+---
+
+## What this project demonstrates
+
+When executed through milestone 5, t2ai shows these AI-job-relevant skills:
+
+- AI product design: hybrid architecture where rules decide, AI explains
+- RAG architecture: pgvector retrieval grounding coaching explanations
+- Structured outputs and validation: Zod schemas at every AI boundary
+- LLM evaluation: Promptfoo datasets measuring extraction, planning, and safety
+- Multimodal ML integration: MediaPipe pose landmarks → deterministic scoring → LLM coaching cues
+- Provider routing and cost awareness: fixture/Ollama/Gemini with explicit selection
+- Production patterns: auth, persistence, RLS, dual-mode fallback, red-flag safety gates
