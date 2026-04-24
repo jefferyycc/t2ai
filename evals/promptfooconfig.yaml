@@ -1,0 +1,45 @@
+# Promptfoo evaluation configuration for the AI strength coaching app.
+# Run: npm run eval
+# View results: npm run eval:view
+#
+# Prerequisites:
+#   - API-based tests (onboarding, plan generation, swap, adjustment):
+#       Start the dev server first: AI_PROVIDER=fixture npm run dev
+#   - Readiness gating tests: no server needed (pure JS function tests)
+
+description: "T2 AI Strength Coach - Evals + Guardrails (Milestone 2)"
+
+# Timeout applied to every test by default.
+defaultTest:
+  options:
+    timeoutMs: 15000
+
+# ---------------------------------------------------------------------------
+# Providers
+# ---------------------------------------------------------------------------
+providers:
+  # Primary provider: calls the app in fixture mode (no live LLM required).
+  # Requires the dev server to be running: AI_PROVIDER=fixture npm run dev
+  - id: "file://providers/fixture-provider.mjs"
+    label: "fixture"
+
+  # Uncomment when Ollama is available locally:
+  # - id: ollama:llama3.2
+  #   label: "ollama"
+  #   config:
+  #     apiBaseUrl: "http://localhost:11434/v1"
+
+  # Uncomment when a Gemini API key is available:
+  # - id: google:gemini-2.5-flash
+  #   label: "gemini"
+  #   config:
+  #     apiKey: "${GOOGLE_GENERATIVE_AI_API_KEY}"
+
+# ---------------------------------------------------------------------------
+# Test suites
+# ---------------------------------------------------------------------------
+tests:
+  - file://datasets/onboarding-extraction.yaml
+  - file://datasets/plan-generation.yaml
+  - file://datasets/swap-safety.yaml
+  - file://datasets/readiness-gating.yaml

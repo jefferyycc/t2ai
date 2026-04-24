@@ -1,0 +1,125 @@
+# Dataset: Onboarding Extraction
+#
+# Tests that the fixture-mode onboarding parser correctly extracts structured
+# profile fields from natural language user messages.
+#
+# Fields checked: workoutGoal, workoutDaysPerWeek, workoutDurationMinutes,
+#                 experienceLevel, limitations
+#
+# The fixture provider calls POST /api/onboard (or processes the message
+# through the same fixture logic as src/lib/ai.ts getFixtureOnboarding).
+# Because the onboarding API may require auth, these tests use the fixture
+# logic directly via the provider which mirrors the same keyword extraction.
+#
+# Run prerequisite: AI_PROVIDER=fixture npm run dev
+
+- description: "Explicit full profile — all fields stated"
+  vars:
+    endpoint: onboarding
+    message: "I want to build muscle, 4 days a week, 60 minutes, intermediate, no injuries"
+  assert:
+    - type: javascript
+      value: |
+        const out = JSON.parse(output);
+        const d = out.draft ?? out;
+        return (
+          (d.workoutGoal === "hypertrophy") &&
+          (d.workoutDaysPerWeek === 4) &&
+          (d.workoutDurationMinutes === 60) &&
+          (d.experienceLevel === "intermediate") &&
+          (Array.isArray(d.limitations) && d.limitations.includes("none"))
+        );
+
+- description: "Strength goal with knee limitation"
+  vars:
+    endpoint: onboarding
+    message: "strength training 3 days, 45 min sessions, bad knees"
+  assert:
+    - type: javascript
+      value: |
+        const out = JSON.parse(output);
+        const d = out.draft ?? out;
+        return (
+          (d.workoutGoal === "strength") &&
+          (d.workoutDaysPerWeek === 3) &&
+          (d.workoutDurationMinutes === 45) &&
+          (Array.isArray(d.limitations) && d.limitations.includes("knees"))
+        );
+
+- description: "Beginner fat loss, 5 days, 30 min — no limitations mentioned"
+  vars:
+    endpoint: onboarding
+    message: "I'm a beginner and want to lose fat. I can do 5 days but only 30 minutes"
+  assert:
+    - type: javascript
+      value: |
+        const out = JSON.parse(output);
+        const d = out.draft ?? out;
+        return (
+          (d.workoutGoal === "fat_loss") &&
+          (d.workoutDaysPerWeek === 5) &&
+          (d.workoutDurationMinutes === 30) &&
+          (d.experienceLevel === "beginner")
+        );
+
+- description: "Vague general fitness goal — only days, no duration"
+  vars:
+    endpoint: onboarding
+    message: "just general fitness, twice a week"
+  assert:
+    - type: javascript
+      value: |
+        const out = JSON.parse(output);
+        const d = out.draft ?? out;
+        return (
+          (d.workoutGoal === "general_fitness") &&
+          (d.workoutDaysPerWeek === 2) &&
+          (d.workoutDurationMinutes === null)
+        );
+
+- description: "Advanced athlete, shoulder issues, hypertrophy"
+  vars:
+    endpoint: onboarding
+    message: "I've been lifting for years, shoulder issues, want hypertrophy, 4 days, hour sessions"
+  assert:
+    - type: javascript
+      value: |
+        const out = JSON.parse(output);
+        const d = out.draft ?? out;
+        return (
+          (d.workoutGoal === "hypertrophy") &&
+          (d.workoutDaysPerWeek === 4) &&
+          (d.workoutDurationMinutes === 60) &&
+          (d.experienceLevel === "advanced") &&
+          (Array.isArray(d.limitations) && d.limitations.includes("shoulders"))
+        );
+
+- description: "Days and limitation only — no explicit goal or duration"
+  vars:
+    endpoint: onboarding
+    message: "3 days gym, lower back problems"
+  assert:
+    - type: javascript
+      value: |
+        const out = JSON.parse(output);
+        const d = out.draft ?? out;
+        return (
+          (d.workoutDaysPerWeek === 3) &&
+          (Array.isArray(d.limitations) && d.limitations.includes("lower_back")) &&
+          (d.workoutDurationMinutes === null)
+        );
+
+- description: "Goal and duration only — no days, no limitations"
+  vars:
+    endpoint: onboarding
+    message: "I want to get stronger doing 45 min workouts"
+  assert:
+    - type: javascript
+      value: |
+        const out = JSON.parse(output);
+        const d = out.draft ?? out;
+        return (
+          (d.workoutGoal === "strength") &&
+          (d.workoutDurationMinutes === 45) &&
+          (d.workoutDaysPerWeek === null)
+        );

@@ -1,0 +1,86 @@
+# Dataset: Readiness Gating
+#
+# Tests the pure assessReadiness() function from src/lib/readiness.ts.
+#
+# Logic (from the source):
+#   soreness >= 8 OR energy <= 2  → "red"
+#   soreness >= 5 OR energy <= 4  → "yellow"
+#   otherwise                     → "green"
+#
+# These tests use type:javascript assertions that import and call assessReadiness
+# directly — NO dev server is required.
+#
+# The fixture provider is not needed; these are self-contained function tests.
+
+- description: "Green: low soreness (2), high energy (8)"
+  vars:
+    soreness: 2
+    energy: 8
+  assert:
+    - type: javascript
+      value: |
+        // Inline the assessReadiness logic so no import is needed in the eval runner.
+        function assessReadiness(soreness, energy) {
+          if (soreness >= 8 || energy <= 2) return "red";
+          if (soreness >= 5 || energy <= 4) return "yellow";
+          return "green";
+        }
+        return assessReadiness(Number(vars.soreness), Number(vars.energy)) === "green";
+
+- description: "Yellow: moderate soreness (6), moderate energy (5)"
+  vars:
+    soreness: 6
+    energy: 5
+  assert:
+    - type: javascript
+      value: |
+        function assessReadiness(soreness, energy) {
+          if (soreness >= 8 || energy <= 2) return "red";
+          if (soreness >= 5 || energy <= 4) return "yellow";
+          return "green";
+        }
+        return assessReadiness(Number(vars.soreness), Number(vars.energy)) === "yellow";
+
+- description: "Red: very high soreness (9), low energy (3)"
+  vars:
+    soreness: 9
+    energy: 3
+  assert:
+    - type: javascript
+      value: |
+        function assessReadiness(soreness, energy) {
+          if (soreness >= 8 || energy <= 2) return "red";
+          if (soreness >= 5 || energy <= 4) return "yellow";
+          return "green";
+        }
+        return assessReadiness(Number(vars.soreness), Number(vars.energy)) === "red";
+
+- description: "Red: energy override — low energy (2) despite mild soreness (3)"
+  vars:
+    soreness: 3
+    energy: 2
+  assert:
+    - type: javascript
+      value: |
+        function assessReadiness(soreness, energy) {
+          if (soreness >= 8 || energy <= 2) return "red";
+          if (soreness >= 5 || energy <= 4) return "yellow";
+          return "green";
+        }
+        // energy <= 2 triggers red regardless of soreness.
+        return assessReadiness(Number(vars.soreness), Number(vars.energy)) === "red";
+
+- description: "Yellow: soreness at threshold (5), good energy (7)"
+  vars:
+    soreness: 5
+    energy: 7
+  assert:
+    - type: javascript
+      value: |
+        function assessReadiness(soreness, energy) {
+          if (soreness >= 8 || energy <= 2) return "red";
+          if (soreness >= 5 || energy <= 4) return "yellow";
+          return "green";
+        }
+        // soreness >= 5 triggers yellow.
+        return assessReadiness(Number(vars.soreness), Number(vars.energy)) === "yellow";

@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "eval": "promptfoo eval",
+    "eval:view": "promptfoo view"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.52",
@@ -26,6 +28,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
+    "promptfoo": "^0.121.5",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
