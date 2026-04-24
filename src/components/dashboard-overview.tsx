@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { Profile, WorkoutPlan } from "@/lib/types";
+import { Profile, WorkoutPlan, ReadinessResult } from "@/lib/types";
 import { PlanSummaryChat } from "./plan-summary-chat";
+import { ReadinessCheckin } from "./readiness-checkin";
 
 type DashboardOverviewProps = {
   profile: Profile;
   plan: WorkoutPlan;
+  latestReadiness?: ReadinessResult | null;
 };
 
 function formatGoal(goal: Profile["workoutGoal"]) {
@@ -23,11 +25,14 @@ function formatGoal(goal: Profile["workoutGoal"]) {
 export function DashboardOverview({
   profile,
   plan,
+  latestReadiness,
 }: DashboardOverviewProps) {
   const today = plan.days[0];
 
   return (
     <div className="dashboard-grid">
+      <ReadinessCheckin initialResult={latestReadiness} />
+
       <section className="surface-card">
         <p className="eyebrow">Profile</p>
         <h2 className="section-title">Current training profile</h2>

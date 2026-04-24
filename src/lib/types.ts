@@ -1,3 +1,5 @@
+export type { ReadinessCheckIn, ReadinessLevel, ReadinessResult } from "@/lib/readiness";
+
 export type WorkoutGoal =
   | "fat_loss"
   | "hypertrophy"
@@ -115,6 +117,7 @@ export type AppState = {
   substitutions: ExerciseSubstitution[];
   currentPlan: WorkoutPlan | null;
   planUpdates: PlanUpdate[];
+  latestReadiness: import("@/lib/readiness").ReadinessResult | null;
 };
 
 export type OnboardingDraft = Pick<

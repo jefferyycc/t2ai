@@ -6,6 +6,8 @@ import {
   insertTrainingPlan,
   isSupabasePersistenceConfigured,
   persistProfile,
+  persistReadinessCheckIn,
+  readLatestReadinessCheckIn,
   readStoredTrainingState,
   saveCompletedProfileAndPlan,
 } from "@/lib/supabase-store";
@@ -16,6 +18,11 @@ import {
   Profile,
   WorkoutDay,
 } from "@/lib/types";
+import {
+  assessReadiness,
+  ReadinessCheckIn,
+  ReadinessResult,
+} from "@/lib/readiness";
 
 function createInitialState(user: UserContext): AppState {
   return {
@@ -32,6 +39,7 @@ function createInitialState(user: UserContext): AppState {
     substitutions: seedSubstitutions,
     currentPlan: null,
     planUpdates: [],
+    latestReadiness: null,
   };
 }
 
@@ -241,12 +249,47 @@ export async function applyExerciseSwap(
   return getWorkoutDay(input.dayId, resolvedUser);
 }
 
+export async function saveReadinessCheckIn(
+  checkIn: ReadinessCheckIn,
+  user?: UserContext,
+): Promise<ReadinessResult> {
+  const resolvedUser = await resolveUser(user);
+  const state = getMemoryState(resolvedUser);
+  const level = assessReadiness(checkIn);
+  const result: ReadinessResult = { level, checkIn };
+
+  state.latestReadiness = result;
+
+  await persistReadinessCheckIn(resolvedUser, checkIn, level);
+
+  return result;
+}
+
+export async function getLatestReadiness(
+  user?: UserContext,
+): Promise<ReadinessResult | null> {
+  const resolvedUser = await resolveUser(user);
+  const state = getMemoryState(resolvedUser);
+
+  if (state.latestReadiness) return state.latestReadiness;
+
+  const stored = await readLatestReadinessCheckIn(resolvedUser);
+  if (!stored) return null;
+
+  const result: ReadinessResult = { level: stored.level, checkIn: stored.checkIn };
+  state.latestReadiness = result;
+  return result;
+}
+
 export async function getDashboardSnapshot(user?: UserContext) {
-  const state = await getAppState(user);
+  const resolvedUser = await resolveUser(user);
+  const state = await getAppState(resolvedUser);
+  const latestReadiness = await getLatestReadiness(resolvedUser);
 
   return {
     profile: state.profile,
     plan: state.currentPlan,
     updates: state.planUpdates.slice(0, 5),
+    latestReadiness,
   };
 }

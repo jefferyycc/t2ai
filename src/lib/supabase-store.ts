@@ -1,5 +1,6 @@
 import { PlanUpdate, Profile, WorkoutPlan } from "@/lib/types";
 import { isSupabaseUser, UserContext } from "@/lib/auth";
+import { ReadinessCheckIn, ReadinessLevel } from "@/lib/readiness";
 
 type ProfileRow = {
   id: string;
@@ -304,4 +305,76 @@ export async function insertPlanUpdate(user: UserContext, update: PlanUpdate) {
     },
     body: JSON.stringify(toPlanUpdateRow(user, update)),
   });
+}
+
+type ReadinessCheckInRow = {
+  id: string;
+  user_id: string;
+  time_of_day: ReadinessCheckIn["timeOfDay"];
+  soreness: number;
+  energy: number;
+  readiness_level: ReadinessLevel;
+  checked_in_at: string;
+};
+
+function toReadinessCheckInRow(
+  user: UserContext,
+  checkIn: ReadinessCheckIn,
+  level: ReadinessLevel,
+): ReadinessCheckInRow {
+  return {
+    id: checkIn.id,
+    user_id: user.id,
+    time_of_day: checkIn.timeOfDay,
+    soreness: checkIn.soreness,
+    energy: checkIn.energy,
+    readiness_level: level,
+    checked_in_at: checkIn.checkedInAt,
+  };
+}
+
+function toReadinessCheckIn(row: ReadinessCheckInRow): ReadinessCheckIn {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    timeOfDay: row.time_of_day,
+    soreness: row.soreness,
+    energy: row.energy,
+    checkedInAt: row.checked_in_at,
+  };
+}
+
+export async function persistReadinessCheckIn(
+  user: UserContext,
+  checkIn: ReadinessCheckIn,
+  level: ReadinessLevel,
+) {
+  if (!isSupabasePersistenceConfigured(user)) return;
+
+  await requestSupabase<ReadinessCheckInRow[]>(user, "readiness_checkins", {
+    method: "POST",
+    headers: {
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify(toReadinessCheckInRow(user, checkIn, level)),
+  });
+}
+
+export async function readLatestReadinessCheckIn(
+  user: UserContext,
+): Promise<{ checkIn: ReadinessCheckIn; level: ReadinessLevel } | null> {
+  if (!isSupabasePersistenceConfigured(user)) return null;
+
+  const userId = encodeFilter(user.id);
+  const rows = await requestSupabase<ReadinessCheckInRow[]>(
+    user,
+    `readiness_checkins?user_id=eq.${userId}&select=*&order=checked_in_at.desc&limit=1`,
+  );
+
+  if (rows.length === 0) return null;
+
+  return {
+    checkIn: toReadinessCheckIn(rows[0]),
+    level: rows[0].readiness_level,
+  };
 }

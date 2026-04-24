@@ -8,6 +8,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["dumbbells"],
     avoidFor: ["knees"],
     demoSupported: false,
+    notes: "Stable squat pattern that is easy to coach and good for moderate loads.",
   },
   {
     id: "leg-press",
@@ -16,6 +17,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["gym_machines"],
     avoidFor: [],
     demoSupported: false,
+    notes: "Supported lower-body press that reduces balance demands and is easy to scale.",
   },
   {
     id: "box-squat",
@@ -24,6 +26,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["bodyweight", "barbell", "dumbbells"],
     avoidFor: ["knees"],
     demoSupported: true,
+    notes: "Controlled squat variation that can reduce depth demands and improve consistency.",
   },
   {
     id: "romanian-deadlift",
@@ -32,6 +35,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["barbell", "dumbbells"],
     avoidFor: ["lower_back"],
     demoSupported: true,
+    notes: "Posterior-chain hinge that works well when the user tolerates trunk loading.",
   },
   {
     id: "hip-thrust",
@@ -40,6 +44,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["barbell", "dumbbells", "gym_machines"],
     avoidFor: [],
     demoSupported: false,
+    notes: "Glute-focused hinge with less lower-back demand than many deadlift variations.",
   },
   {
     id: "hamstring-curl",
@@ -48,6 +53,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["gym_machines", "resistance_bands"],
     avoidFor: [],
     demoSupported: false,
+    notes: "Supported hamstring movement that is useful when hinge fatigue needs to stay low.",
   },
   {
     id: "incline-dumbbell-press",
@@ -56,6 +62,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["dumbbells"],
     avoidFor: [],
     demoSupported: false,
+    notes: "Stable horizontal press that fits hypertrophy and general strength work.",
   },
   {
     id: "push-up",
@@ -64,6 +71,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["bodyweight"],
     avoidFor: ["wrists"],
     demoSupported: false,
+    notes: "Simple pressing pattern that is efficient when bodyweight work is tolerated.",
   },
   {
     id: "machine-chest-press",
@@ -72,6 +80,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["gym_machines"],
     avoidFor: [],
     demoSupported: false,
+    notes: "Guided press that is easy to progress and easier on balance demands.",
   },
   {
     id: "dumbbell-overhead-press",
@@ -80,6 +89,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["dumbbells"],
     avoidFor: ["shoulders"],
     demoSupported: false,
+    notes: "Vertical press for users who tolerate overhead work and want shoulder strength.",
   },
   {
     id: "landmine-press",
@@ -88,6 +98,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["barbell"],
     avoidFor: ["shoulders"],
     demoSupported: false,
+    notes: "Pressing pattern with a more angled path than a strict overhead press.",
   },
   {
     id: "lateral-raise",
@@ -96,6 +107,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["dumbbells", "resistance_bands"],
     avoidFor: ["shoulders"],
     demoSupported: false,
+    notes: "Light accessory raise that should stay secondary to compound pressing.",
   },
   {
     id: "chest-supported-row",
@@ -104,6 +116,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["dumbbells", "gym_machines"],
     avoidFor: [],
     demoSupported: false,
+    notes: "Supported upper-back row that keeps the torso stable.",
   },
   {
     id: "seated-cable-row",
@@ -112,6 +125,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["gym_machines"],
     avoidFor: [],
     demoSupported: false,
+    notes: "Consistent cable row that is easy to scale and recover from.",
   },
   {
     id: "lat-pulldown",
@@ -120,6 +134,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["gym_machines"],
     avoidFor: [],
     demoSupported: false,
+    notes: "Classic vertical pull for lat strength when cable equipment is available.",
   },
   {
     id: "band-lat-pulldown",
@@ -128,6 +143,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["resistance_bands"],
     avoidFor: [],
     demoSupported: false,
+    notes: "Simple home-friendly vertical pull alternative when a cable stack is unavailable.",
   },
   {
     id: "split-squat",
@@ -136,6 +152,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["bodyweight", "dumbbells"],
     avoidFor: ["knees"],
     demoSupported: false,
+    notes: "Unilateral lower-body movement that builds stability and control.",
   },
   {
     id: "step-up",
@@ -144,6 +161,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["bodyweight", "dumbbells"],
     avoidFor: ["knees"],
     demoSupported: false,
+    notes: "Lower-body movement that is easy to load lightly and keep stable.",
   },
   {
     id: "dead-bug",
@@ -152,6 +170,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["bodyweight"],
     avoidFor: [],
     demoSupported: false,
+    notes: "Core stability drill with low spinal loading and clear progressions.",
   },
   {
     id: "plank",
@@ -160,6 +179,7 @@ export const seedExercises: Exercise[] = [
     equipment: ["bodyweight"],
     avoidFor: ["wrists"],
     demoSupported: false,
+    notes: "Simple trunk endurance movement that fits most sessions when wrists tolerate it.",
   },
 ];
 

@@ -28,7 +28,7 @@ export default async function DashboardPage() {
     );
   }
 
-  const { profile, plan } = snapshot;
+  const { profile, plan, latestReadiness } = snapshot;
 
   if (!plan || !profile.onboardingComplete) {
     return (
@@ -63,7 +63,7 @@ export default async function DashboardPage() {
           UI is added.
         </p>
       </section>
-      <DashboardOverview plan={plan} profile={profile} />
+      <DashboardOverview plan={plan} profile={profile} latestReadiness={latestReadiness} />
     </main>
   );
 }
