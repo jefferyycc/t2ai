@@ -20,8 +20,8 @@ I built a local-first AI strength coach. LLMs handle language and structured dra
 |---|------|--------|-----------------|
 | 1 | Real Today Coach | Done | Supabase persistence, profile/plan tables, today dashboard, readiness check-in, safe exercise swap, Ollama coaching copy |
 | 2 | Evals + Guardrails | Done | 28 Promptfoo eval cases, fixture provider, 4 eval datasets, safety guardrail coverage |
-| 3 | Small RAG | Next | pgvector knowledge chunks, Ollama embeddings, retrieval-grounded plan/swap explanations, developer debug logs |
-| 4 | Squat Golden Demo | Planned | Browser-side MediaPipe, deterministic rep metrics, LLM feedback summary, feedback influences future plan notes |
+| 3 | Small RAG | Done | pgvector knowledge chunks, Ollama embeddings, retrieval-grounded plan/swap explanations, developer debug logs |
+| 4 | Squat Golden Demo | Next | Browser-side MediaPipe, deterministic rep metrics, LLM feedback summary, feedback influences future plan notes |
 | 5 | Portfolio Polish | Planned | Clean README, architecture diagram, eval results, latency/cost notes, demo script |
 
 ---
@@ -100,7 +100,7 @@ The original ROADMAP.md and architecture.html called for Langfuse tracing. We ch
 
 ---
 
-## Milestone 3: Small RAG — next
+## Milestone 3: Small RAG — done
 
 Goal: ground coaching explanations in retrieved knowledge rather than relying on prompt-only context.
 
@@ -120,24 +120,22 @@ Goal: ground coaching explanations in retrieved knowledge rather than relying on
 - Embedding provider follows the same routing pattern as ai.ts: ollama default, fixture for tests.
 - The existing planning-knowledge.ts continues to work as fallback when Supabase/pgvector is unavailable.
 
-### Key files to create
+### Key files
 
-- `supabase/migrations/0003_knowledge_vectors.sql`
-- `src/lib/embeddings.ts`
-- `src/lib/knowledge-store.ts`
-- `src/lib/rag-logger.ts`
-- `scripts/seed-knowledge.ts`
-
-### Key files to modify
-
-- `src/lib/planner.ts` — use RAG retrieval with fallback
-- `src/lib/substitutions.ts` — enrich swap replies with retrieved cues
-- `src/app/api/plan/adjust/route.ts` — inject retrieved context into LLM prompt
-- `.env.example` — add OLLAMA_EMBED_MODEL, KNOWLEDGE_RAG_ENABLED
+- `supabase/migrations/0003_knowledge_vectors.sql` — pgvector(384), HNSW cosine index, `match_knowledge_chunks` RPC, RLS with public-read policy
+- `src/lib/embeddings.ts` — Ollama nomic-embed-text + fixture provider
+- `src/lib/knowledge-store.ts` — cosine retrieval + deterministic fallback + `previewKnowledgeChunks` for the debug endpoint
+- `src/lib/rag-logger.ts` — dev-mode chunk/score logging
+- `src/lib/data/knowledge-base.ts` — single source of truth for planning chunks (consumed by both fallback and seed script)
+- `scripts/seed-knowledge.ts` — embeds + upserts; prunes stale chunks; validates embedding dimension before insert
+- `src/app/api/debug/rag/route.ts` — dev-only retrieval inspection endpoint
+- `evals/datasets/rag-retrieval.yaml` — 3 cases covering query builder, fallback ranking, RAG-off regression
+- `src/lib/planner.ts`, `src/lib/substitutions.ts`, `src/app/api/plan/adjust/route.ts` — call `retrieveKnowledge` / `retrieveSwapKnowledge` with graceful fallback
+- `.env.example`, `package.json`, `README.md` — RAG configuration and setup story
 
 ---
 
-## Milestone 4: Squat Golden Demo — planned
+## Milestone 4: Squat Golden Demo — next
 
 Goal: demonstrate multimodal AI integration with a real analysis pipeline. This is the portfolio centerpiece.
 

@@ -3,13 +3,21 @@ import { formatPlanningKnowledge } from "@/lib/planning-knowledge";
 import { logRagRetrieval, logRagDisabled } from "@/lib/rag-logger";
 import type { Exercise, Profile } from "@/lib/types";
 
-type KnowledgeChunk = {
+export type KnowledgeChunk = {
   id: string;
   chunkType: string;
   title: string;
   body: string;
   similarity: number;
   metadata: Record<string, unknown>;
+};
+
+export type KnowledgePreview = {
+  enabled: boolean;
+  reason?: string;
+  query: string;
+  chunks: KnowledgeChunk[];
+  durationMs: number;
 };
 
 function isRagEnabled(): boolean {
@@ -119,6 +127,60 @@ export async function retrieveKnowledge(
   } catch (error) {
     console.error("[RAG] Retrieval failed, falling back to deterministic knowledge:", error);
     return formatPlanningKnowledge(profile, availableExercises);
+  }
+}
+
+/**
+ * Inspect retrieval for a free-form query without running the formatter.
+ * Used by the dev-only `/api/debug/rag` endpoint so an interviewer can SEE
+ * what the retrieval layer is doing — not just trust that it ran.
+ *
+ * Returns a structured payload (chunks + scores + duration + enable status)
+ * instead of the prompt-ready text returned by retrieveKnowledge.
+ */
+export async function previewKnowledgeChunks(
+  query: string,
+  limit: number = 8,
+): Promise<KnowledgePreview> {
+  const trimmedQuery = query.trim();
+
+  if (!isRagEnabled()) {
+    return {
+      enabled: false,
+      reason: "KNOWLEDGE_RAG_ENABLED is not true or Supabase env vars missing",
+      query: trimmedQuery,
+      chunks: [],
+      durationMs: 0,
+    };
+  }
+
+  if (trimmedQuery.length === 0) {
+    return {
+      enabled: true,
+      reason: "Empty query",
+      query: trimmedQuery,
+      chunks: [],
+      durationMs: 0,
+    };
+  }
+
+  const startTime = Date.now();
+  try {
+    const chunks = await queryKnowledgeChunks(trimmedQuery, limit);
+    return {
+      enabled: true,
+      query: trimmedQuery,
+      chunks,
+      durationMs: Date.now() - startTime,
+    };
+  } catch (error) {
+    return {
+      enabled: true,
+      reason: `Retrieval failed: ${(error as Error).message}`,
+      query: trimmedQuery,
+      chunks: [],
+      durationMs: Date.now() - startTime,
+    };
   }
 }
 
