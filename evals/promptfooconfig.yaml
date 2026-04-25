@@ -43,3 +43,4 @@ tests:
   - file://datasets/plan-generation.yaml
   - file://datasets/swap-safety.yaml
   - file://datasets/readiness-gating.yaml
+  - file://datasets/rag-retrieval.yaml
