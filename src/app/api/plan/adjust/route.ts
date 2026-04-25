@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { applyExerciseSwap, getAppState, getCurrentPlan } from "@/lib/db";
 import { getServerUser, isAuthError, UserContext } from "@/lib/auth";
 import { generateStructuredData } from "@/lib/ai";
+import { retrieveSwapKnowledge } from "@/lib/knowledge-store";
 import { seedExercises } from "@/lib/data/exercises";
 import { z } from "zod";
 
@@ -135,10 +136,17 @@ export async function POST(request: Request) {
       }))
     }));
 
+    // Retrieve relevant coaching knowledge from RAG if available
+    const ragContext = await retrieveSwapKnowledge("plan adjustment", message);
+    const ragSection = ragContext
+      ? `\nRelevant coaching knowledge:\n${ragContext}\n`
+      : "";
+
     const systemPrompt = `You are a helpful AI fitness coach. The user wants to modify their current workout plan.
 Analyze their request, locate the appropriate exercise in their plan, and find a suitable replacement from the available exercises list.
 You can also adjust the sets and reps if the user asks for more/less volume or intensity.
-Only suggest replacements that make sense biomechanically (e.g. swap a squat for another squat) and respect their request.`;
+Only suggest replacements that make sense biomechanically (e.g. swap a squat for another squat) and respect their request.
+If coaching knowledge is provided, use it to ground your explanation.`;
 
     const userPrompt = `User request: ${message}
 
@@ -146,9 +154,9 @@ Current Plan:
 ${JSON.stringify(simplifiedPlan, null, 2)}
 
 Available Exercises to choose from (only use 'id' for newExerciseId):
-${JSON.stringify(available, null, 2)}
+${JSON.stringify(available, null, 2)}${ragSection}
 
-Determine if an adjustment is possible. If so, return hasAdjustment: true and provide the exact dayId, workoutExerciseId (from the Current Plan), and the newExerciseId (from the Available Exercises list). 
+Determine if an adjustment is possible. If so, return hasAdjustment: true and provide the exact dayId, workoutExerciseId (from the Current Plan), and the newExerciseId (from the Available Exercises list).
 Also provide the targetMuscle group for the new exercise, and the updated sets/reps if appropriate.
 Provide a very brief, friendly assistantMessage (max 3 short sentences) confirming the swap or explaining why it couldn't be done.`;
 

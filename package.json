@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "eval": "promptfoo eval",
-    "eval:view": "promptfoo view"
+    "eval:view": "promptfoo view",
+    "seed:knowledge": "tsx scripts/seed-knowledge.ts",
+    "seed:knowledge:fixture": "tsx scripts/seed-knowledge.ts --fixture"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.52",
@@ -28,7 +30,9 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
+    "dotenv": "^16.4.7",
     "promptfoo": "^0.121.5",
+    "tsx": "^4.19.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

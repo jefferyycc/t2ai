@@ -1,4 +1,5 @@
 import { generateCoachingCopy } from "@/lib/ai";
+import { retrieveSwapKnowledge } from "@/lib/knowledge-store";
 import { AppState, Exercise, SwapSuggestion, WorkoutDay } from "@/lib/types";
 
 function getCompatibleExercises(state: AppState, sourceExerciseId: string) {
@@ -54,15 +55,21 @@ export async function buildSwapReply(
   suggestions: SwapSuggestion[],
   message: string,
 ) {
+  // Retrieve relevant coaching cues from RAG if available
+  const ragContext = await retrieveSwapKnowledge(exerciseName, message);
+  const ragSection = ragContext
+    ? `\nRelevant coaching knowledge:\n${ragContext}\n`
+    : "";
+
   return generateCoachingCopy({
     system:
-      "You are a concise fitness coach. Explain substitution suggestions without medical language and keep it under 60 words.",
+      "You are a concise fitness coach. Explain substitution suggestions without medical language and keep it under 60 words. If coaching knowledge is provided, use it to ground your explanation.",
     prompt: `Workout day: ${day.title}
 Exercise to replace: ${exerciseName}
 User complaint: ${message}
 Suggestions: ${suggestions
       .map((item) => `${item.name}: ${item.reason}`)
-      .join("; ")}
+      .join("; ")}${ragSection}
 Write a short reply.`,
   });
 }

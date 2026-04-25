@@ -1,6 +1,6 @@
 import { seedExercises, seedSubstitutions } from "@/lib/data/exercises";
 import { generateStructuredData } from "@/lib/ai";
-import { formatPlanningKnowledge } from "@/lib/planning-knowledge";
+import { retrieveKnowledge } from "@/lib/knowledge-store";
 import { z } from "zod";
 import {
   Exercise,
@@ -411,7 +411,7 @@ function repairGeneratedPlan(
   } satisfies WorkoutPlan;
 }
 
-function getPlanningContext(profile: Profile, availableExercises: Exercise[]) {
+async function getPlanningContext(profile: Profile, availableExercises: Exercise[]) {
   const substitutions = seedSubstitutions
     .map((item) => {
       const source = availableExercises.find(
@@ -431,6 +431,11 @@ function getPlanningContext(profile: Profile, availableExercises: Exercise[]) {
     })
     .filter((item) => item !== null);
 
+  // Use RAG retrieval when available, fall back to deterministic knowledge
+  const knowledge = await retrieveKnowledge(profile, availableExercises, {
+    targetPrompt: "planner",
+  });
+
   return {
     available: availableExercises.map((exercise) => ({
       id: exercise.id,
@@ -439,7 +444,7 @@ function getPlanningContext(profile: Profile, availableExercises: Exercise[]) {
       equipment: exercise.equipment,
       notes: exercise.notes ?? "No extra coaching notes.",
     })),
-    knowledge: formatPlanningKnowledge(profile, availableExercises),
+    knowledge,
     splitTemplates: getSplitTemplates(profile.workoutDaysPerWeek).map((template) => ({
       title: template.title,
       focus: template.focus,
@@ -452,7 +457,7 @@ function getPlanningContext(profile: Profile, availableExercises: Exercise[]) {
 
 export async function generateWorkoutPlan(profile: Profile): Promise<WorkoutPlan> {
   const availableExercises = filterExercises(profile);
-  const planningContext = getPlanningContext(profile, availableExercises);
+  const planningContext = await getPlanningContext(profile, availableExercises);
 
   const generated = await generateStructuredData({
     system:
