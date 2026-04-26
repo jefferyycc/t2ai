@@ -153,3 +153,86 @@ export type SwapResponse = {
   updatedDay: WorkoutDay | null;
   applied: boolean;
 };
+
+// ---------------------------------------------------------------------------
+// Squat analysis (milestone 4)
+// ---------------------------------------------------------------------------
+
+/**
+ * MediaPipe Pose returns 33 landmarks per frame. Only the joints we use for
+ * deterministic squat metrics are listed here; the index numbers come from
+ * the MediaPipe Pose specification (see PoseLandmark enum in
+ * @mediapipe/tasks-vision).
+ */
+export type PoseLandmark = {
+  x: number;
+  y: number;
+  z?: number;
+  visibility: number;
+};
+
+export type FrameLandmarks = {
+  timestampMs: number;
+  landmarks: PoseLandmark[];
+};
+
+export type SquatScoreTier = "good" | "needs_work" | "poor";
+
+export type RepMetrics = {
+  repIndex: number;
+  /** Hip drop ratio at bottom: 1.0 = parallel, >1.0 = below parallel. */
+  depthRatio: number;
+  /** Knee valgus proxy: lateral deviation of knees vs hip width at bottom. */
+  kneeTrackingScore: number;
+  /** Heel rise proxy: vertical drift of ankle landmarks at bottom. */
+  heelStability: number;
+  /** Forward torso lean angle in degrees. */
+  torsoLeanDeg: number;
+  /** Eccentric (descent) duration in milliseconds. */
+  descentMs: number;
+  /** Concentric (ascent) duration in milliseconds. */
+  ascentMs: number;
+};
+
+export type SquatAggregateMetrics = {
+  repCount: number;
+  meanDepthRatio: number;
+  worstDepthRatio: number;
+  meanKneeTracking: number;
+  worstKneeTracking: number;
+  meanHeelStability: number;
+  worstHeelStability: number;
+  meanTorsoLeanDeg: number;
+  worstTorsoLeanDeg: number;
+  meanTempoRatio: number;
+};
+
+export type SquatAnalysis = {
+  source: "upload" | "webcam";
+  reps: RepMetrics[];
+  aggregate: SquatAggregateMetrics;
+  score: number;
+  tier: SquatScoreTier;
+  /** 0..1 — how confident we are in the metrics, based on landmark visibility. */
+  confidence: number;
+  durationSeconds: number;
+};
+
+export type SquatCue = {
+  metric: keyof SquatAggregateMetrics | "overall";
+  message: string;
+};
+
+export type SquatRun = {
+  id: string;
+  userId: string;
+  source: "upload" | "webcam";
+  repCount: number;
+  score: number;
+  tier: SquatScoreTier;
+  confidence: number;
+  metrics: SquatAggregateMetrics;
+  cues: SquatCue[];
+  durationSeconds: number;
+  createdAt: string;
+};

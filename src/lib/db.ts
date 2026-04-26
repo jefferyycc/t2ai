@@ -7,7 +7,9 @@ import {
   isSupabasePersistenceConfigured,
   persistProfile,
   persistReadinessCheckIn,
+  persistSquatRun,
   readLatestReadinessCheckIn,
+  readRecentSquatRuns,
   readStoredTrainingState,
   saveCompletedProfileAndPlan,
 } from "@/lib/supabase-store";
@@ -16,6 +18,7 @@ import {
   OnboardingDraft,
   PlanUpdate,
   Profile,
+  SquatRun,
   WorkoutDay,
 } from "@/lib/types";
 import {
@@ -45,6 +48,19 @@ function createInitialState(user: UserContext): AppState {
 
 declare global {
   var __fitloopStates: Map<string, AppState> | undefined;
+  var __fitloopSquatRuns: Map<string, SquatRun[]> | undefined;
+}
+
+// In-memory fallback for squat runs when Supabase is not configured. Keyed
+// by user id; capped at 50 entries per user.
+function getMemorySquatRuns(userId: string): SquatRun[] {
+  if (!globalThis.__fitloopSquatRuns) {
+    globalThis.__fitloopSquatRuns = new Map<string, SquatRun[]>();
+  }
+  if (!globalThis.__fitloopSquatRuns.has(userId)) {
+    globalThis.__fitloopSquatRuns.set(userId, []);
+  }
+  return globalThis.__fitloopSquatRuns.get(userId)!;
 }
 
 async function resolveUser(user?: UserContext) {
@@ -122,7 +138,8 @@ export async function completeProfile(draft: OnboardingDraft, user?: UserContext
     updatedAt: new Date().toISOString(),
   };
 
-  const plan = await generateWorkoutPlan(profile);
+  const recentSquats = await getRecentSquatRuns(resolvedUser, 3).catch(() => []);
+  const plan = await generateWorkoutPlan(profile, recentSquats);
   await saveCompletedProfileAndPlan(resolvedUser, profile, plan);
 
   state.profile = profile;
@@ -142,7 +159,8 @@ export async function generatePlanFromProfile(user?: UserContext) {
     return null;
   }
 
-  const plan = await generateWorkoutPlan(state.profile);
+  const recentSquats = await getRecentSquatRuns(resolvedUser, 3).catch(() => []);
+  const plan = await generateWorkoutPlan(state.profile, recentSquats);
   await insertTrainingPlan(resolvedUser, plan);
 
   state.currentPlan = plan;
@@ -279,6 +297,52 @@ export async function getLatestReadiness(
   const result: ReadinessResult = { level: stored.level, checkIn: stored.checkIn };
   state.latestReadiness = result;
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Squat runs (milestone 4)
+// ---------------------------------------------------------------------------
+
+export async function saveSquatRun(
+  run: SquatRun,
+  user?: UserContext,
+): Promise<SquatRun> {
+  const resolvedUser = await resolveUser(user);
+
+  // Always cache in memory so demo mode (no Supabase) still has a history.
+  const memory = getMemorySquatRuns(resolvedUser.id);
+  memory.unshift(run);
+  if (memory.length > 50) memory.length = 50;
+
+  if (isSupabasePersistenceConfigured(resolvedUser)) {
+    try {
+      await persistSquatRun(resolvedUser, run);
+    } catch (error) {
+      console.error("Failed to persist squat run", error);
+      // Memory cache still has it; surface the error to the caller.
+      throw error;
+    }
+  }
+
+  return run;
+}
+
+export async function getRecentSquatRuns(
+  user?: UserContext,
+  limit: number = 5,
+): Promise<SquatRun[]> {
+  const resolvedUser = await resolveUser(user);
+
+  if (isSupabasePersistenceConfigured(resolvedUser)) {
+    try {
+      const rows = await readRecentSquatRuns(resolvedUser, limit);
+      if (rows.length > 0) return rows;
+    } catch (error) {
+      console.error("Failed to read squat runs from Supabase, falling back to memory", error);
+    }
+  }
+
+  return getMemorySquatRuns(resolvedUser.id).slice(0, limit);
 }
 
 export async function getDashboardSnapshot(user?: UserContext) {

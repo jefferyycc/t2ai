@@ -1,4 +1,12 @@
-import { PlanUpdate, Profile, WorkoutPlan } from "@/lib/types";
+import {
+  PlanUpdate,
+  Profile,
+  SquatAggregateMetrics,
+  SquatCue,
+  SquatRun,
+  SquatScoreTier,
+  WorkoutPlan,
+} from "@/lib/types";
 import { isSupabaseUser, UserContext } from "@/lib/auth";
 import { ReadinessCheckIn, ReadinessLevel } from "@/lib/readiness";
 
@@ -377,4 +385,79 @@ export async function readLatestReadinessCheckIn(
     checkIn: toReadinessCheckIn(rows[0]),
     level: rows[0].readiness_level,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Squat runs (milestone 4)
+// ---------------------------------------------------------------------------
+
+type SquatRunRow = {
+  id: string;
+  user_id: string;
+  source: SquatRun["source"];
+  rep_count: number;
+  score: number;
+  tier: SquatScoreTier;
+  confidence: number;
+  metrics_json: SquatAggregateMetrics;
+  cues_json: SquatCue[];
+  duration_seconds: number | null;
+  created_at: string;
+};
+
+function toSquatRun(row: SquatRunRow): SquatRun {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    source: row.source,
+    repCount: row.rep_count,
+    score: row.score,
+    tier: row.tier,
+    confidence: Number(row.confidence),
+    metrics: row.metrics_json,
+    cues: row.cues_json,
+    durationSeconds: Number(row.duration_seconds ?? 0),
+    createdAt: row.created_at,
+  };
+}
+
+function toSquatRunRow(user: UserContext, run: SquatRun): SquatRunRow {
+  return {
+    id: run.id,
+    user_id: user.id,
+    source: run.source,
+    rep_count: run.repCount,
+    score: run.score,
+    tier: run.tier,
+    confidence: run.confidence,
+    metrics_json: run.metrics,
+    cues_json: run.cues,
+    duration_seconds: run.durationSeconds ?? null,
+    created_at: run.createdAt,
+  };
+}
+
+export async function persistSquatRun(user: UserContext, run: SquatRun) {
+  if (!isSupabasePersistenceConfigured(user)) return;
+
+  await requestSupabase<SquatRunRow[]>(user, "squat_runs", {
+    method: "POST",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify(toSquatRunRow(user, run)),
+  });
+}
+
+export async function readRecentSquatRuns(
+  user: UserContext,
+  limit: number = 5,
+): Promise<SquatRun[]> {
+  if (!isSupabasePersistenceConfigured(user)) return [];
+
+  const userId = encodeFilter(user.id);
+  const rows = await requestSupabase<SquatRunRow[]>(
+    user,
+    `squat_runs?user_id=eq.${userId}&select=*&order=created_at.desc&limit=${limit}`,
+  );
+
+  return rows.map(toSquatRun);
 }

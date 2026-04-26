@@ -6,11 +6,13 @@ This README covers the current state through milestone 3. See [ROADMAP.md](./ROA
 
 ## What this project demonstrates
 
-- **Hybrid AI architecture** — rules decide, AI explains. Red-flag detection, equipment/limitation gating, and plan repair are all deterministic. The LLM only generates language.
+- **Hybrid AI architecture** — rules decide, AI explains. Red-flag detection, equipment/limitation gating, plan repair, and squat scoring are all deterministic. The LLM only generates language.
 - **Structured outputs with Zod validation** at every AI boundary, with a fixture provider for reproducible tests.
 - **RAG over coaching knowledge** — pgvector + Ollama embeddings ground planner and swap explanations. Falls back to a deterministic ranker when retrieval is disabled or errors.
+- **Multimodal pipeline** — browser-side MediaPipe Pose Landmarker extracts squat landmarks; pure-TS metric/scoring code produces a 0–100 score; the LLM only translates the numbers into 1–3 short cues.
+- **Adaptation loop** — recent squat sessions feed back into plan generation as a low-weight context note, so depth or knee-tracking issues steer the next plan without overriding safety rules.
 - **Provider routing** — Ollama (local), fixture (deterministic), and Gemini (cloud) selected by env, never silently. No hidden cloud calls.
-- **LLM evaluation** — Promptfoo dataset of 31 cases covering onboarding extraction, plan generation, swap safety, readiness gating, and RAG retrieval.
+- **LLM evaluation** — Promptfoo dataset of 35 cases covering onboarding extraction, plan generation, swap safety, readiness gating, RAG retrieval, and squat scoring.
 - **Production patterns** — Supabase Postgres with RLS, dual-mode in-memory fallback, auth context plumbed through every API route.
 
 ## Architecture at a glance
@@ -18,9 +20,11 @@ This README covers the current state through milestone 3. See [ROADMAP.md](./ROA
 ```
 Layer 01  Experience      Next.js dashboard, onboarding chat, swap UI
 Layer 02  Application     /api/onboard, /api/plan/{generate,adjust},
-                          /api/exercises/swap, /api/readiness, /api/debug/rag
-Layer 03  Decision        readiness.ts, planner.ts, substitutions.ts
-                          (deterministic safety + plan repair)
+                          /api/exercises/swap, /api/readiness,
+                          /api/squat/analyze, /api/debug/rag
+Layer 03  Decision        readiness.ts, planner.ts, substitutions.ts,
+                          squat/{metrics,scoring}.ts
+                          (deterministic safety + plan repair + scoring)
 Layer 04  AI Runtime      ai.ts (chat/structured), embeddings.ts (vectors)
                           providers: ollama | fixture | gemini
 Layer 05  Knowledge       knowledge-store.ts (pgvector retrieval) ──┐
@@ -28,7 +32,7 @@ Layer 05  Knowledge       knowledge-store.ts (pgvector retrieval) ──┐
                           chunks in src/lib/data/knowledge-base.ts
 Layer 06  Data            Supabase Postgres + RLS (profiles, plans,
                           plan_adjustments, readiness_checkins,
-                          knowledge_chunks)
+                          knowledge_chunks, squat_runs)
 ```
 
 ## Setup
@@ -104,6 +108,7 @@ Promptfoo drives 31 test cases across five datasets:
 | `swap-safety` | 7 | Red-flag detection, validation gates, valid-swap path |
 | `readiness-gating` | 5 | Pure `assessReadiness()` thresholds |
 | `rag-retrieval` | 3 | Query builder, deterministic fallback ranking, RAG-off regression |
+| `squat-metrics` | 4 | Score tier assignment, confidence cap, tempo normalization |
 
 The fixture provider in `evals/providers/fixture-provider.mjs` routes every test through the running dev server in fixture mode. Readiness and the first two RAG cases are pure-JS and need no server.
 
@@ -151,7 +156,7 @@ evals/                  Promptfoo configuration and datasets
 | 1 | Real Today Coach | Done |
 | 2 | Evals + Guardrails | Done |
 | 3 | Small RAG | Done |
-| 4 | Squat Golden Demo | Planned |
+| 4 | Squat Golden Demo | Done |
 | 5 | Portfolio Polish | Planned |
 
 See [ROADMAP.md](./ROADMAP.md) for milestone deliverables and decisions.

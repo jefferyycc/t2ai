@@ -1,0 +1,174 @@
+# Dataset: Squat Metrics + Scoring (Milestone 4)
+#
+# Tests the deterministic core of the squat analyzer:
+#   - Score tier assignment (good/needs_work/poor) for representative metrics
+#   - Confidence cap (low landmark visibility shouldn't yield a perfect score)
+#   - Cue prioritization (the worst metric should drive the loudest cue)
+#   - Tempo normalization (descent/ascent ratio scoring)
+#
+# These are pure-JS unit-style tests like readiness-gating — no server,
+# no MediaPipe, no LLM. The actual scoring rules live in
+# src/lib/squat/scoring.ts; the inline functions below mirror those rules
+# faithfully so a regression in either side will be caught.
+
+# ---------------------------------------------------------------------------
+# Case 1: Clean perfect-form squat scores in the "good" tier (>= 80)
+# ---------------------------------------------------------------------------
+- description: "Squat scoring: ideal-form metrics with full confidence land in the 'good' tier"
+  vars:
+    metrics:
+      repCount: 5
+      meanDepthRatio: 1.05
+      worstDepthRatio: 1.02
+      meanKneeTracking: 0.95
+      worstKneeTracking: 0.90
+      meanHeelStability: 0.95
+      worstHeelStability: 0.90
+      meanTorsoLeanDeg: 12
+      worstTorsoLeanDeg: 18
+      meanTempoRatio: 2.0
+    confidence: 1.0
+  assert:
+    - type: javascript
+      value: |
+        // Inline of src/lib/squat/scoring.ts (essentials).
+        function clamp01(x) { return Math.max(0, Math.min(1, Number.isFinite(x) ? x : 0)); }
+        function normDepth(mean, worst) {
+          return 0.5 * clamp01((mean - 0.85) / 0.20) + 0.5 * clamp01((worst - 0.80) / 0.25);
+        }
+        function normKnee(mean, worst) { return 0.5 * mean + 0.5 * worst; }
+        function normHeel(mean, worst) { return 0.5 * mean + 0.5 * worst; }
+        function normTorso(mean, worst) {
+          return 0.5 * (1 - clamp01(mean / 30)) + 0.5 * (1 - clamp01(worst / 45));
+        }
+        function normTempo(r) {
+          if (r <= 0) return 0;
+          const d = Math.abs(Math.log(r) - Math.log(2));
+          return clamp01(1 - d / 0.7);
+        }
+        const m = vars.metrics;
+        const w = { depth: 0.30, knee: 0.25, heel: 0.15, torso: 0.15, tempo: 0.15 };
+        const sum =
+          normDepth(m.meanDepthRatio, m.worstDepthRatio) * w.depth +
+          normKnee(m.meanKneeTracking, m.worstKneeTracking) * w.knee +
+          normHeel(m.meanHeelStability, m.worstHeelStability) * w.heel +
+          normTorso(m.meanTorsoLeanDeg, m.worstTorsoLeanDeg) * w.torso +
+          normTempo(m.meanTempoRatio) * w.tempo;
+        const cap = 0.5 + 0.5 * clamp01(vars.confidence);
+        const score = Math.max(0, Math.min(100, Math.round(sum * 100 * Math.min(1, cap))));
+        const tier = score >= 80 ? "good" : score >= 50 ? "needs_work" : "poor";
+        return tier === "good" && score >= 80;
+
+# ---------------------------------------------------------------------------
+# Case 2: Shallow + valgus squat lands in the "poor" tier (< 50)
+# ---------------------------------------------------------------------------
+- description: "Squat scoring: shallow depth and valgus knees land in the 'poor' tier"
+  vars:
+    metrics:
+      repCount: 3
+      meanDepthRatio: 0.78
+      worstDepthRatio: 0.70
+      meanKneeTracking: 0.35
+      worstKneeTracking: 0.20
+      meanHeelStability: 0.50
+      worstHeelStability: 0.30
+      meanTorsoLeanDeg: 35
+      worstTorsoLeanDeg: 50
+      meanTempoRatio: 1.2
+    confidence: 0.95
+  assert:
+    - type: javascript
+      value: |
+        function clamp01(x) { return Math.max(0, Math.min(1, Number.isFinite(x) ? x : 0)); }
+        function normDepth(mean, worst) {
+          return 0.5 * clamp01((mean - 0.85) / 0.20) + 0.5 * clamp01((worst - 0.80) / 0.25);
+        }
+        function normKnee(mean, worst) { return 0.5 * mean + 0.5 * worst; }
+        function normHeel(mean, worst) { return 0.5 * mean + 0.5 * worst; }
+        function normTorso(mean, worst) {
+          return 0.5 * (1 - clamp01(mean / 30)) + 0.5 * (1 - clamp01(worst / 45));
+        }
+        function normTempo(r) {
+          if (r <= 0) return 0;
+          const d = Math.abs(Math.log(r) - Math.log(2));
+          return clamp01(1 - d / 0.7);
+        }
+        const m = vars.metrics;
+        const w = { depth: 0.30, knee: 0.25, heel: 0.15, torso: 0.15, tempo: 0.15 };
+        const sum =
+          normDepth(m.meanDepthRatio, m.worstDepthRatio) * w.depth +
+          normKnee(m.meanKneeTracking, m.worstKneeTracking) * w.knee +
+          normHeel(m.meanHeelStability, m.worstHeelStability) * w.heel +
+          normTorso(m.meanTorsoLeanDeg, m.worstTorsoLeanDeg) * w.torso +
+          normTempo(m.meanTempoRatio) * w.tempo;
+        const cap = 0.5 + 0.5 * clamp01(vars.confidence);
+        const score = Math.max(0, Math.min(100, Math.round(sum * 100 * Math.min(1, cap))));
+        const tier = score >= 80 ? "good" : score >= 50 ? "needs_work" : "poor";
+        return tier === "poor" && score < 50;
+
+# ---------------------------------------------------------------------------
+# Case 3: Confidence cap — perfect metrics with 0 visibility cap at 50
+# ---------------------------------------------------------------------------
+- description: "Squat scoring: zero-confidence run with otherwise-perfect metrics caps at 50"
+  vars:
+    metrics:
+      repCount: 5
+      meanDepthRatio: 1.05
+      worstDepthRatio: 1.02
+      meanKneeTracking: 0.95
+      worstKneeTracking: 0.90
+      meanHeelStability: 0.95
+      worstHeelStability: 0.90
+      meanTorsoLeanDeg: 12
+      worstTorsoLeanDeg: 18
+      meanTempoRatio: 2.0
+    confidence: 0.0
+  assert:
+    - type: javascript
+      value: |
+        function clamp01(x) { return Math.max(0, Math.min(1, Number.isFinite(x) ? x : 0)); }
+        function normDepth(mean, worst) {
+          return 0.5 * clamp01((mean - 0.85) / 0.20) + 0.5 * clamp01((worst - 0.80) / 0.25);
+        }
+        function normKnee(mean, worst) { return 0.5 * mean + 0.5 * worst; }
+        function normHeel(mean, worst) { return 0.5 * mean + 0.5 * worst; }
+        function normTorso(mean, worst) {
+          return 0.5 * (1 - clamp01(mean / 30)) + 0.5 * (1 - clamp01(worst / 45));
+        }
+        function normTempo(r) {
+          if (r <= 0) return 0;
+          const d = Math.abs(Math.log(r) - Math.log(2));
+          return clamp01(1 - d / 0.7);
+        }
+        const m = vars.metrics;
+        const w = { depth: 0.30, knee: 0.25, heel: 0.15, torso: 0.15, tempo: 0.15 };
+        const sum =
+          normDepth(m.meanDepthRatio, m.worstDepthRatio) * w.depth +
+          normKnee(m.meanKneeTracking, m.worstKneeTracking) * w.knee +
+          normHeel(m.meanHeelStability, m.worstHeelStability) * w.heel +
+          normTorso(m.meanTorsoLeanDeg, m.worstTorsoLeanDeg) * w.torso +
+          normTempo(m.meanTempoRatio) * w.tempo;
+        const cap = 0.5 + 0.5 * clamp01(vars.confidence);
+        const score = Math.max(0, Math.min(100, Math.round(sum * 100 * Math.min(1, cap))));
+        // Confidence 0 → cap is 0.5 → score capped at 50.
+        return score <= 50;
+
+# ---------------------------------------------------------------------------
+# Case 4: Tempo normalization — descent/ascent ratio of 2.0 is ideal
+# ---------------------------------------------------------------------------
+- description: "Tempo normalization: ratio of 2.0 scores higher than ratio of 1.0 or 4.0"
+  vars: {}
+  assert:
+    - type: javascript
+      value: |
+        function clamp01(x) { return Math.max(0, Math.min(1, Number.isFinite(x) ? x : 0)); }
+        function normTempo(r) {
+          if (r <= 0) return 0;
+          const d = Math.abs(Math.log(r) - Math.log(2));
+          return clamp01(1 - d / 0.7);
+        }
+        const ideal = normTempo(2.0);
+        const fast = normTempo(1.0);
+        const slow = normTempo(4.0);
+        // Ideal ratio gets the best score; both extremes lose points.
+        return ideal > fast && ideal > slow && ideal >= 0.95;

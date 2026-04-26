@@ -8,6 +8,7 @@ import {
   Limitation,
   OnboardingDraft,
   Profile,
+  SquatRun,
   WorkoutExercise,
   WorkoutPlan,
 } from "@/lib/types";
@@ -411,7 +412,43 @@ function repairGeneratedPlan(
   } satisfies WorkoutPlan;
 }
 
-async function getPlanningContext(profile: Profile, availableExercises: Exercise[]) {
+/**
+ * Adaptation hook (milestone 4): summarize recent squat sessions into a
+ * single line of context that nudges the planner without overriding any
+ * deterministic safety rules. Intentionally short so it doesn't dominate the
+ * prompt — the LLM can still ignore it when the rest of the context conflicts.
+ */
+function summarizeRecentSquats(runs: SquatRun[]): string | null {
+  if (runs.length === 0) return null;
+
+  // Look at the most recent 3 sessions. We surface the worst recurring issue
+  // (low depth, knee tracking, etc.) so the planner can soften upcoming squat
+  // volume or steer toward variations.
+  const recent = runs.slice(0, 3);
+  const meanScore =
+    recent.reduce((sum, r) => sum + r.score, 0) / recent.length;
+
+  const issues: string[] = [];
+  if (recent.every((r) => r.metrics.meanDepthRatio < 0.95)) {
+    issues.push("squat depth has been limited — consider box squats or supported variations");
+  }
+  if (recent.some((r) => r.metrics.worstKneeTracking < 0.6)) {
+    issues.push("knee tracking faltered on heavier reps — bias toward stable patterns");
+  }
+  if (recent.some((r) => r.metrics.worstHeelStability < 0.6)) {
+    issues.push("heels lifted on recent sessions — keep loading conservative");
+  }
+
+  const issueText = issues.length > 0 ? issues.join("; ") : "no recurring issues flagged";
+
+  return `Recent squat sessions (n=${recent.length}, mean score ${Math.round(meanScore)}/100): ${issueText}.`;
+}
+
+async function getPlanningContext(
+  profile: Profile,
+  availableExercises: Exercise[],
+  recentSquatRuns: SquatRun[] = [],
+) {
   const substitutions = seedSubstitutions
     .map((item) => {
       const source = availableExercises.find(
@@ -436,6 +473,8 @@ async function getPlanningContext(profile: Profile, availableExercises: Exercise
     targetPrompt: "planner",
   });
 
+  const adaptationNote = summarizeRecentSquats(recentSquatRuns);
+
   return {
     available: availableExercises.map((exercise) => ({
       id: exercise.id,
@@ -452,12 +491,20 @@ async function getPlanningContext(profile: Profile, availableExercises: Exercise
     })),
     substitutions,
     exerciseCount: getExerciseTargetCount(profile.workoutDurationMinutes),
+    adaptationNote,
   };
 }
 
-export async function generateWorkoutPlan(profile: Profile): Promise<WorkoutPlan> {
+export async function generateWorkoutPlan(
+  profile: Profile,
+  recentSquatRuns: SquatRun[] = [],
+): Promise<WorkoutPlan> {
   const availableExercises = filterExercises(profile);
-  const planningContext = await getPlanningContext(profile, availableExercises);
+  const planningContext = await getPlanningContext(
+    profile,
+    availableExercises,
+    recentSquatRuns,
+  );
 
   const generated = await generateStructuredData({
     system:
@@ -468,7 +515,7 @@ Use about ${planningContext.exerciseCount} exercises per day.
 
 Retrieved planning guidance:
 ${planningContext.knowledge}
-
+${planningContext.adaptationNote ? `\nUser adaptation note (informational only — do not violate any other rule):\n${planningContext.adaptationNote}\n` : ""}
 Recommended split templates:
 ${JSON.stringify(planningContext.splitTemplates, null, 2)}
 

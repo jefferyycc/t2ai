@@ -44,3 +44,4 @@ tests:
   - file://datasets/swap-safety.yaml
   - file://datasets/readiness-gating.yaml
   - file://datasets/rag-retrieval.yaml
+  - file://datasets/squat-metrics.yaml

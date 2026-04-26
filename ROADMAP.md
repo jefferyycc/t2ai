@@ -21,8 +21,8 @@ I built a local-first AI strength coach. LLMs handle language and structured dra
 | 1 | Real Today Coach | Done | Supabase persistence, profile/plan tables, today dashboard, readiness check-in, safe exercise swap, Ollama coaching copy |
 | 2 | Evals + Guardrails | Done | 28 Promptfoo eval cases, fixture provider, 4 eval datasets, safety guardrail coverage |
 | 3 | Small RAG | Done | pgvector knowledge chunks, Ollama embeddings, retrieval-grounded plan/swap explanations, developer debug logs |
-| 4 | Squat Golden Demo | Next | Browser-side MediaPipe, deterministic rep metrics, LLM feedback summary, feedback influences future plan notes |
-| 5 | Portfolio Polish | Planned | Clean README, architecture diagram, eval results, latency/cost notes, demo script |
+| 4 | Squat Golden Demo | Done | Browser-side MediaPipe, deterministic rep metrics, LLM feedback summary, feedback influences future plan notes |
+| 5 | Portfolio Polish | Next | Clean README, architecture diagram, eval results, latency/cost notes, demo script |
 
 ---
 
@@ -135,7 +135,7 @@ Goal: ground coaching explanations in retrieved knowledge rather than relying on
 
 ---
 
-## Milestone 4: Squat Golden Demo — next
+## Milestone 4: Squat Golden Demo — done
 
 Goal: demonstrate multimodal AI integration with a real analysis pipeline. This is the portfolio centerpiece.
 
@@ -164,7 +164,7 @@ Goal: demonstrate multimodal AI integration with a real analysis pipeline. This 
 
 ---
 
-## Milestone 5: Portfolio Polish — planned
+## Milestone 5: Portfolio Polish — next
 
 Goal: make the project impressive for interviews and demos.
 
