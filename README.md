@@ -123,6 +123,36 @@ npm run eval:view   # opens the HTML report
 
 To run cross-provider comparisons, uncomment the Ollama / Gemini providers in `evals/promptfooconfig.yaml`.
 
+## Troubleshooting
+
+**Landing page shows "AI provider is unreachable" or onboarding POSTs fail.**
+The most likely cause is `AI_PROVIDER=ollama` (the default) with no Ollama running, or the configured models not pulled. Two fixes:
+
+```bash
+# Option A — switch to fixture mode (deterministic, no LLM):
+AI_PROVIDER=fixture npm run dev
+
+# Option B — run Ollama with the models from .env.example:
+ollama serve
+ollama pull llama3.2
+ollama pull gemma3:4b
+curl http://localhost:11434/api/tags    # verify models are present
+```
+
+The welcome message degrades to a static fallback when the LLM is unreachable, so the page still loads — but extraction (POST `/api/profile`) needs a working provider.
+
+**`/api/debug/rag` returns `{ "enabled": false, "reason": "..." }`.**
+RAG retrieval is gated on three things: `KNOWLEDGE_RAG_ENABLED=true`, `SUPABASE_URL`, and `SUPABASE_ANON_KEY`. If any are missing, retrieval is disabled and the planner falls back to the deterministic ranker. Set them in `.env.local` and restart.
+
+**`/api/debug/rag` returns `enabled: true` but no chunks.**
+The `knowledge_chunks` table is empty. Run `npm run seed:knowledge` (or `npm run seed:knowledge:fixture` if Ollama isn't available). Verify Supabase has the migration applied — the RPC `match_knowledge_chunks` must exist.
+
+**Squat analyzer fails with "Could not load video metadata".**
+Some browsers can't read certain codecs. Try a different clip or transcode to H.264 / MP4. The PoseLandmarker WASM also needs internet on first load to fetch the model from `storage.googleapis.com`.
+
+**Supabase persistence appears not to save.**
+The dev server falls back to in-memory state when `SUPABASE_URL` / `SUPABASE_ANON_KEY` are absent. Demo flows still work end-to-end, but reloading clears state. Add the env vars and apply the migrations to enable persistence.
+
 ## Project layout
 
 ```

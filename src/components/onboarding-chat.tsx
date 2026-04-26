@@ -43,10 +43,21 @@ export function OnboardingChat() {
           throw new Error(data.error || "Failed to load the onboarding coach.");
         }
 
-        const data = (await response.json()) as { assistantMessage: string };
+        const data = (await response.json()) as {
+          assistantMessage: string;
+          degraded?: boolean;
+          degradedReason?: string;
+        };
 
         if (!cancelled) {
           setMessages([{ role: "assistant", text: data.assistantMessage }]);
+          // Degraded mode: the welcome message is a static fallback because the
+          // AI provider is unreachable. Show the reason as a non-blocking warning
+          // instead of treating the page as broken — the user can still read the
+          // welcome and start fixing their environment.
+          if (data.degraded && data.degradedReason) {
+            setError(data.degradedReason);
+          }
         }
       } catch (error) {
         if (!cancelled) {
