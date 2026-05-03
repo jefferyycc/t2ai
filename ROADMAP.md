@@ -14,6 +14,37 @@ Unified execution plan for the t2ai AI strength coaching portfolio project. Aggr
 
 I built a local-first AI strength coach. LLMs handle language and structured drafts, deterministic systems own safety and adaptation, MediaPipe handles pose signals, Supabase persists user state and vector knowledge, and evals measure whether the AI layer behaves.
 
+## Architecture (current state)
+
+Six layers. Deterministic code owns safety, scoring, and persistence. The AI runtime only generates language and embeddings. RAG enhances explanations; it never overrides the safety layer.
+
+```mermaid
+flowchart TD
+    U["User<br/>(browser)"] --> EXP["Layer 01 — Experience<br/>Next.js dashboard, onboarding,<br/>swap UI, squat upload"]
+    EXP --> APP["Layer 02 — Application<br/>/api/profile, /api/plan/{generate,adjust}<br/>/api/exercises/swap, /api/readiness<br/>/api/squat/analyze, /api/debug/rag"]
+
+    APP --> DEC["Layer 03 — Decision (deterministic)<br/>readiness · planner · substitutions<br/>squat metrics + scoring"]
+    APP --> AI["Layer 04 — AI Runtime<br/>ai.ts (chat / structured)<br/>embeddings.ts"]
+    APP --> KN["Layer 05 — Knowledge<br/>knowledge-store.ts (pgvector)<br/>planning-knowledge.ts (fallback)"]
+    APP --> DATA["Layer 06 — Data<br/>Supabase Postgres + RLS<br/>Supabase Storage (squat videos)"]
+
+    AI -->|env-routed| OLL["Ollama (local)"]
+    AI -->|env-routed| FIX["Fixture (deterministic)"]
+    AI -->|env-routed| GEM["Gemini (cloud)"]
+
+    KN --> AI
+    DEC --> AI
+    DATA --> KN
+    DATA --> DEC
+
+    EXP -. browser-side .-> POSE["MediaPipe Pose Landmarker<br/>(landmarks extracted in browser)"]
+    POSE --> APP
+
+    EVAL["Promptfoo eval suite<br/>35 cases · 6 datasets"] -. fixture provider .-> APP
+```
+
+Notes on what is intentionally absent: no mobile app (web-only, responsive), no Inngest async jobs, no OpenTelemetry/Langfuse runtime tracing. Earlier design docs anticipated these; the shipped scope is tighter.
+
 ## Milestone overview
 
 | # | Name | Status | Key deliverables |
@@ -22,7 +53,7 @@ I built a local-first AI strength coach. LLMs handle language and structured dra
 | 2 | Evals + Guardrails | Done | 28 Promptfoo eval cases, fixture provider, 4 eval datasets, safety guardrail coverage |
 | 3 | Small RAG | Done | pgvector knowledge chunks, Ollama embeddings, retrieval-grounded plan/swap explanations, developer debug logs |
 | 4 | Squat Golden Demo | Done | Browser-side MediaPipe, deterministic rep metrics, LLM feedback summary, feedback influences future plan notes |
-| 5 | Portfolio Polish | Next | Clean README, architecture diagram, eval results, latency/cost notes, demo script |
+| 5 | Portfolio Polish | In progress | Clean README, architecture diagram, eval results, latency/cost notes, demo script |
 
 ---
 
@@ -164,18 +195,19 @@ Goal: demonstrate multimodal AI integration with a real analysis pipeline. This 
 
 ---
 
-## Milestone 5: Portfolio Polish — next
+## Milestone 5: Portfolio Polish — in progress
 
 Goal: make the project impressive for interviews and demos.
 
 ### Deliverables
 
-- Clean README with setup instructions, architecture overview, and screenshots.
-- Architecture diagram (update architecture.html with current state — all planned items should reflect built status).
-- Eval results: screenshots of Promptfoo report, pass/fail summary, cross-provider comparison if Ollama/Gemini runs exist.
-- Latency/cost note: fixture vs Ollama vs Gemini comparison for key flows (plan generation, coaching copy, embeddings).
-- Demo script: step-by-step walkthrough that an interviewer can follow or watch in a recorded video.
-- Update ROADMAP.md status column to reflect final state.
+- **Done** — Clean README. Status line updated, M4 squat-analyzer setup section added, duplicate milestone status table replaced with a one-line link, eval count synced.
+- **Done** — Architecture diagram. Mermaid block added to ROADMAP.md (current state, six layers, provider routing, MediaPipe + eval suite). `architecture.html` refreshed to mark M3/M4 deliverables Built and M5 In progress.
+- **Done** — Demo script. `docs/DEMO.md` walks through onboarding → plan → readiness → swap → RAG → squat analyzer → evals, with architectural callouts at each step.
+- **Done** — Design-doc archive. Pre-implementation notes moved to `docs/design/archive/` so the top-level docs only describe shipped state.
+- **Deferred** — Eval results (Promptfoo HTML screenshots, cross-provider comparison). The infrastructure is in place (`npm run eval` + `npm run eval:view`); generating polished artifacts requires real Ollama/Gemini runs.
+- **Deferred** — Latency/cost note. Same gating as above — needs timed runs across fixture / Ollama / Gemini for plan generation, coaching copy, and embeddings.
+- **Deferred** — Recorded demo video. Written walkthrough in `docs/DEMO.md` covers the same material.
 
 ---
 

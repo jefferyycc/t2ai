@@ -1,19 +1,9 @@
-# t2ai Design Docs
+# t2ai design docs
 
-This folder captures the current product and system design for `t2ai` before implementation.
+Current state lives at the project root, not here:
 
-Files:
+- [`/ROADMAP.md`](../../ROADMAP.md) — milestones, deliverables, decisions log, and the current architecture diagram (Mermaid)
+- [`/architecture.html`](../../architecture.html) — polished portfolio render of the same architecture
+- [`/README.md`](../../README.md) — setup, usage, and the eval suite
 
-- `product-overview.md`: product thesis, target user, core jobs, and scope boundaries
-- `system-design.md`: top-level architecture, layer-by-layer design, Mermaid diagrams, data flow, stack choices, free/open resources, and source-backed pricing/licensing notes
-- `ai-runtime-architecture.md`: provider-agnostic AI runtime design for Ollama, fixture mode, and later hosted frontier models
-- `milestone-1-persistence-auth-plan.md`: implementation plan for Supabase-backed profile, plan, and adjustment persistence
-
-Current direction:
-
-- `t2ai` is a portfolio-quality applied AI project
-- primary wedge: a readiness-aware strength coach that tells the user what to do today
-- AI is used for explanation, structured extraction, retrieval-backed reasoning, and feedback
-- deterministic logic owns safety, scoring, and workout adaptation rules
-- local development uses Ollama on a private Mac mini data plane, with explicit cloud provider opt-in
-- the web UI is currently an explicit demo surface; Supabase-authenticated persistence is available for bearer-token API clients until login UI is added
+This folder now only contains the [`archive/`](./archive/) subfolder, which holds pre-implementation design notes preserved for portfolio context. Those notes intentionally do not match shipped state — they show how the design evolved.

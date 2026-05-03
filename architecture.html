@@ -1,4 +1,14 @@
 <!doctype html>
+<!--
+  t2ai — system architecture (showcase render)
+
+  This page mirrors ROADMAP.md. ROADMAP is the canonical source for
+  milestones, decisions, and the architecture diagram (Mermaid).
+  When statuses change, update both files in the same commit.
+
+  Last refreshed: M5 polish pass — milestones 1–4 marked Done,
+  milestone 5 marked In progress.
+-->
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -435,9 +445,14 @@
           <span class="node-desc">Rule-based substitutions</span>
         </div>
         <div class="node">
-          <span class="pill planned">Planned</span>
-          <span class="node-name">/api/video/analyze</span>
-          <span class="node-desc">Enqueues pose pipeline</span>
+          <span class="pill built">Built</span>
+          <span class="node-name">/api/squat/analyze</span>
+          <span class="node-desc">Persist landmarks + metrics + cues</span>
+        </div>
+        <div class="node">
+          <span class="pill built">Built</span>
+          <span class="node-name">/api/debug/rag</span>
+          <span class="node-desc">Dev-only retrieval inspection</span>
         </div>
       </div>
       <div style="margin-top:12px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--g500);">
@@ -460,7 +475,7 @@
           <div class="node"><span class="node-name">readiness.ts</span><span class="node-desc">soreness + energy → green/yellow/red</span></div>
           <div class="node"><span class="node-name">planner.ts</span><span class="node-desc">filter by equipment + limitations</span></div>
           <div class="node"><span class="node-name">substitutions.ts</span><span class="node-desc">rule-based swap suggestions</span></div>
-          <div class="node"><span class="pill planned">Planned</span><span class="node-name">Form scoring</span><span class="node-desc">depth · heel · knee tracking</span></div>
+          <div class="node"><span class="pill built">Built</span><span class="node-name">squat/metrics + scoring</span><span class="node-desc">depth · heel · knee · tempo · 0–100 score</span></div>
         </div>
       </div>
 
@@ -476,7 +491,7 @@
           <div class="node teal"><span class="pill teal">Default</span><span class="node-name">ollama</span><span class="node-desc">llama3.2 · gemma3:4b · localhost only</span></div>
           <div class="node"><span class="node-name">fixture</span><span class="node-desc">deterministic, no-key, for tests</span></div>
           <div class="node"><span class="node-name">gemini</span><span class="node-desc">explicit opt-in · 2.5-flash</span></div>
-          <div class="node"><span class="pill partial">M3 — Next</span><span class="node-name">pgvector retrieval</span><span class="node-desc">Ollama embeddings · knowledge chunks</span></div>
+          <div class="node"><span class="pill built">Built</span><span class="node-name">pgvector retrieval</span><span class="node-desc">Ollama nomic-embed-text · HNSW cosine · fallback ranker</span></div>
         </div>
       </div>
 
@@ -491,9 +506,9 @@
         <div class="nodes" style="grid-template-columns:1fr;gap:8px;">
           <div class="node"><span class="pill partial">Dual-mode</span><span class="node-name">Supabase Postgres</span><span class="node-desc">supabase-store.ts · falls back to in-memory</span></div>
           <div class="node"><span class="pill partial">Dual-mode</span><span class="node-name">Auth</span><span class="node-desc">demo cookie today · Supabase bearer</span></div>
-          <div class="node"><span class="pill planned">Planned</span><span class="node-name">Supabase Storage</span><span class="node-desc">video uploads</span></div>
-          <div class="node"><span class="pill planned">Planned</span><span class="node-name">Inngest · MediaPipe</span><span class="node-desc">async pose pipeline</span></div>
-          <div class="node"><span class="pill built">Built</span><span class="node-name">Promptfoo evals</span><span class="node-desc">28 cases · 4 datasets · fixture provider</span></div>
+          <div class="node"><span class="pill built">Built</span><span class="node-name">squat_runs table</span><span class="node-desc">metrics + cues persisted; videos stay client-side</span></div>
+          <div class="node"><span class="pill built">Built</span><span class="node-name">Browser MediaPipe</span><span class="node-desc">pose extraction in-page; server only sees landmarks</span></div>
+          <div class="node"><span class="pill built">Built</span><span class="node-name">Promptfoo evals</span><span class="node-desc">35 cases · 6 datasets · fixture provider</span></div>
         </div>
       </div>
     </div>
@@ -522,7 +537,7 @@
         <li><span class="actor">API</span>Load profile, plan, latest readiness from <strong>Postgres</strong>.</li>
         <li><span class="actor">Decision</span>assessReadiness() → <strong>green / yellow / red</strong>.</li>
         <li><span class="actor">Decision</span>Adjust volume + intensity based on level.</li>
-        <li><span class="actor">Retrieval</span>Pull relevant cues + memory (pgvector, <em>planned</em>).</li>
+        <li><span class="actor">Retrieval</span>Pull relevant cues + memory from <strong>pgvector</strong> (deterministic ranker if RAG is off).</li>
         <li><span class="actor">AI</span>Ask LLM for a concise coach message (Zod-typed).</li>
         <li><span class="actor">API</span>Validate output → safety gate → return to UI.</li>
         <li><span class="actor">UI</span>Render plan + explanation + confidence badge.</li>
@@ -531,20 +546,19 @@
 
     <div class="flow">
       <div class="eyebrow" style="color:var(--teal);">Flow B</div>
-      <h3>Form analysis (planned)</h3>
+      <h3>Form analysis</h3>
       <p style="font-size:13.5px;color:var(--g600);margin:4px 0 0;">
-        User uploads a squat video. We extract pose, score the reps
-        deterministically, and let the LLM translate numbers into cues.
+        User uploads a squat video. The browser extracts pose, deterministic
+        code scores the reps, and the LLM translates numbers into cues.
       </p>
       <ol>
-        <li><span class="actor">UI</span>Upload lift video → /api/video/analyze.</li>
-        <li><span class="actor">API</span>Save file to <strong>Supabase Storage</strong>.</li>
-        <li><span class="actor">Jobs</span>Inngest enqueues an analysis run.</li>
-        <li><span class="actor">Vision</span>MediaPipe Pose Landmarker → landmarks per frame.</li>
-        <li><span class="actor">Decision</span>Compute rep metrics: depth, heel lift, knee tracking.</li>
-        <li><span class="actor">Decision</span>Score each rep. <em>This stays deterministic.</em></li>
-        <li><span class="actor">AI</span>LLM summarizes structured metrics into 2–3 cues.</li>
-        <li><span class="actor">DB</span>Persist metrics, score, summary. UI polls for result.</li>
+        <li><span class="actor">UI</span>Upload lift video into the squat analyzer.</li>
+        <li><span class="actor">Vision</span><strong>MediaPipe Pose Landmarker</strong> runs in-browser → landmarks per frame.</li>
+        <li><span class="actor">UI</span>POST landmarks (not the video) to <code style="font-family:var(--mono);font-size:12px;">/api/squat/analyze</code>.</li>
+        <li><span class="actor">Decision</span>Compute rep metrics: depth, heel lift, knee tracking, tempo.</li>
+        <li><span class="actor">Decision</span>Score each rep into good / needs work / poor. <em>Source of truth.</em></li>
+        <li><span class="actor">AI</span>LLM summarizes structured metrics into 2–3 cues (Zod-typed).</li>
+        <li><span class="actor">DB</span>Persist metrics + cues to <code style="font-family:var(--mono);font-size:12px;">squat_runs</code>; feeds back as a low-weight note in next plan generation.</li>
       </ol>
     </div>
 
@@ -594,16 +608,16 @@
         <strong>M1 — Done:</strong> persistence, today dashboard, readiness check-in, safe swap, Ollama coaching.
       </p>
       <p>
-        <strong>M2 — Done:</strong> 28 Promptfoo eval cases across 4 datasets, fixture provider routing.
+        <strong>M2 — Done:</strong> 35 Promptfoo eval cases across 6 datasets, fixture provider routing.
       </p>
       <p>
-        <strong>M3 — Next:</strong> pgvector knowledge chunks, Ollama embeddings, retrieval-grounded explanations.
+        <strong>M3 — Done:</strong> pgvector knowledge chunks, Ollama embeddings, retrieval-grounded explanations.
       </p>
       <p>
-        <strong>M4 — Planned:</strong> MediaPipe squat analysis, deterministic scoring, LLM coaching cues, adaptation hook.
+        <strong>M4 — Done:</strong> Browser-side MediaPipe, deterministic squat scoring, LLM coaching cues, adaptation hook.
       </p>
       <p>
-        <strong>M5 — Planned:</strong> README, architecture update, eval results, demo script, portfolio polish.
+        <strong>M5 — In progress:</strong> README polish, architecture refresh, demo script, eval/cost notes.
       </p>
     </div>
 
@@ -703,9 +717,9 @@
       </div>
     </div>
 
-    <div class="layer" style="padding:16px 20px;box-shadow:0px 0px 0px 2px var(--teal),rgba(0,0,0,0.04) 0px 2px 4px;">
+    <div class="layer" style="padding:16px 20px;">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-        <span class="pill teal">Next</span>
+        <span class="pill built">Done</span>
         <span style="font-size:16px;font-weight:600;letter-spacing:-0.02em;">M3 — Small RAG</span>
       </div>
       <div class="nodes" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
@@ -719,7 +733,7 @@
 
     <div class="layer" style="padding:16px 20px;">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-        <span class="pill planned">Planned</span>
+        <span class="pill built">Done</span>
         <span style="font-size:16px;font-weight:600;letter-spacing:-0.02em;">M4 — Squat Golden Demo</span>
       </div>
       <div class="nodes" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">
@@ -730,9 +744,9 @@
       </div>
     </div>
 
-    <div class="layer" style="padding:16px 20px;">
+    <div class="layer" style="padding:16px 20px;box-shadow:0px 0px 0px 2px var(--teal),rgba(0,0,0,0.04) 0px 2px 4px;">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-        <span class="pill planned">Planned</span>
+        <span class="pill teal">In progress</span>
         <span style="font-size:16px;font-weight:600;letter-spacing:-0.02em;">M5 — Portfolio Polish</span>
       </div>
       <div class="nodes" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;">

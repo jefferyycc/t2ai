@@ -1,8 +1,8 @@
 # t2ai — Train Train AI
 
-A local-first AI strength coaching app, built as a portfolio piece for AI engineering / applied AI roles. LLMs draft and explain; deterministic systems own safety, validation, and persistence; pgvector grounds coaching copy in retrieved knowledge; MediaPipe (in milestone 4) handles pose signals.
+A local-first AI strength coaching app, built as a portfolio piece for AI engineering / applied AI roles. LLMs draft and explain; deterministic systems own safety, validation, and persistence; pgvector grounds coaching copy in retrieved knowledge; browser-side MediaPipe extracts squat landmarks for deterministic scoring with LLM-summarized cues.
 
-This README covers the current state through milestone 3. See [ROADMAP.md](./ROADMAP.md) for the full milestone plan.
+Status: milestones 1–4 shipped, milestone 5 (portfolio polish) in progress. See [ROADMAP.md](./ROADMAP.md) for the full plan, decisions log, and architecture diagram.
 
 ## What this project demonstrates
 
@@ -19,7 +19,7 @@ This README covers the current state through milestone 3. See [ROADMAP.md](./ROA
 
 ```
 Layer 01  Experience      Next.js dashboard, onboarding chat, swap UI
-Layer 02  Application     /api/onboard, /api/plan/{generate,adjust},
+Layer 02  Application     /api/profile, /api/plan/{generate,adjust},
                           /api/exercises/swap, /api/readiness,
                           /api/squat/analyze, /api/debug/rag
 Layer 03  Decision        readiness.ts, planner.ts, substitutions.ts,
@@ -88,6 +88,14 @@ For verbose retrieval logs in the server console:
 KNOWLEDGE_RAG_DEBUG=true npm run dev
 ```
 
+### 5. (Optional) Squat analyzer — milestone 4
+
+The squat analyzer runs MediaPipe Pose Landmarker entirely in the browser and posts only the extracted metrics to the server. No setup is required beyond the dev server, but a few notes:
+
+- The pose model file (`public/pose_landmarker_heavy.task`) is committed in the repo, so first-load works offline once the page is cached. The MediaPipe WASM still fetches from `storage.googleapis.com` on first load.
+- Side-view squat clips work best — single person in frame, ideally H.264 / MP4. Sample clips live in `public/squat.mp4` and `public/correct_results.mp4`.
+- Persisted reports (Supabase configured) feed back into plan generation as a low-weight context note. With Supabase off, the report still renders but doesn't influence subsequent plans.
+
 ## Running the app
 
 ```bash
@@ -99,7 +107,7 @@ Onboarding chat is on the home page. Once you complete onboarding, the dashboard
 
 ## Evaluation suite
 
-Promptfoo drives 31 test cases across five datasets:
+Promptfoo drives 35 test cases across six datasets:
 
 | Dataset | Cases | What it covers |
 |---|---|---|
@@ -181,12 +189,4 @@ evals/                  Promptfoo configuration and datasets
 
 ## Milestone status
 
-| # | Name | Status |
-|---|---|---|
-| 1 | Real Today Coach | Done |
-| 2 | Evals + Guardrails | Done |
-| 3 | Small RAG | Done |
-| 4 | Squat Golden Demo | Done |
-| 5 | Portfolio Polish | Planned |
-
-See [ROADMAP.md](./ROADMAP.md) for milestone deliverables and decisions.
+Milestones 1–4 shipped. Milestone 5 (portfolio polish) in progress. See [ROADMAP.md](./ROADMAP.md) for the milestone table, deliverables, decisions log, and architecture diagram. A demo walkthrough lives in [docs/DEMO.md](./docs/DEMO.md).
