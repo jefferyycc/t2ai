@@ -71,8 +71,8 @@
         const out = JSON.parse(output);
         const plan = out.plan ?? out;
         if (!Array.isArray(plan.days)) return true;
-        // squat, box-squat, split-squat, step-up all have avoidFor: ["knees"]
-        const kneeIds = ["squat", "box-squat", "split-squat", "step-up"];
+        // goblet-squat, back-squat, box-squat, split-squat, step-up all have avoidFor: ["knees"]
+        const kneeIds = ["goblet-squat", "back-squat", "box-squat", "split-squat", "step-up"];
         const allExIds = plan.days.flatMap(d => (d.exercises ?? []).map(e => e.exerciseId));
         return !allExIds.some(id => kneeIds.includes(id));
 

@@ -53,9 +53,13 @@ function normalizeHeelStability(mean: number, worst: number): number {
 }
 
 function normalizeTorsoLean(meanDeg: number, worstDeg: number): number {
-  // 0° = upright, 30° = aggressive forward lean. Score linearly.
-  const meanScore = 1 - clamp01(meanDeg / 30);
-  const worstScore = 1 - clamp01(worstDeg / 45);
+  // Forward torso lean of 30–50° at the bottom is normal across squat
+  // styles (low-bar back squat, longer femurs, average-or-worse ankle
+  // mobility). Real form breakdown shows up beyond ~60°, and "the chest
+  // collapses" is more of a worst-rep failure than a mean signal.
+  // Mean: 30° → 1.0, 80° → 0.0. Worst: 35° → 1.0, 90° → 0.0.
+  const meanScore = 1 - clamp01((meanDeg - 30) / 50);
+  const worstScore = 1 - clamp01((worstDeg - 35) / 55);
   return 0.5 * meanScore + 0.5 * worstScore;
 }
 

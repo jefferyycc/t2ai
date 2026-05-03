@@ -2,13 +2,22 @@ import { Exercise, ExerciseSubstitution } from "@/lib/types";
 
 export const seedExercises: Exercise[] = [
   {
-    id: "squat",
+    id: "goblet-squat",
     name: "Goblet Squat",
     category: "squat",
     equipment: ["dumbbells"],
     avoidFor: ["knees"],
     demoSupported: false,
     notes: "Stable squat pattern that is easy to coach and good for moderate loads.",
+  },
+  {
+    id: "back-squat",
+    name: "Barbell Back Squat",
+    category: "squat",
+    equipment: ["barbell"],
+    avoidFor: ["knees", "lower_back"],
+    demoSupported: true,
+    notes: "Heavy compound squat for users comfortable with barbell loading and bracing.",
   },
   {
     id: "leg-press",
@@ -210,7 +219,7 @@ export const seedSubstitutions: ExerciseSubstitution[] = [
   },
   {
     id: "sub-5",
-    sourceExerciseId: "squat",
+    sourceExerciseId: "goblet-squat",
     substituteExerciseId: "leg-press",
     reason: "Offers a supported squat pattern when the user wants less balance demand.",
   },

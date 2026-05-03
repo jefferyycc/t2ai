@@ -4,6 +4,7 @@ import { getServerUser, isAuthError, UserContext } from "@/lib/auth";
 import { generateStructuredData } from "@/lib/ai";
 import { retrieveSwapKnowledge } from "@/lib/knowledge-store";
 import { seedExercises } from "@/lib/data/exercises";
+import { muscleLabelFor, parseSwapIntent } from "@/lib/parse-swap-intent";
 import { z } from "zod";
 
 const adjustmentSchema = z.object({
@@ -115,6 +116,109 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No active plan found." }, { status: 400 });
     }
 
+    // Deterministic intent parsing: if the user named both the exercise to
+    // replace and the target replacement, we resolve the IDs ourselves and
+    // skip the LLM's selection step entirely. The LLM stays in the loop for
+    // ambiguous requests ("give me an easier core move") but never overrides
+    // an explicit user choice.
+    const intent = parseSwapIntent(message, plan, seedExercises);
+
+    if (intent.kind === "ambiguous-target") {
+      const candidates = intent.toCandidateIds
+        .map((id) => seedExercises.find((e) => e.id === id))
+        .filter((e): e is typeof seedExercises[number] => Boolean(e));
+
+      const namedList =
+        candidates.length === 2
+          ? `${candidates[0].name} or ${candidates[1].name}`
+          : candidates
+              .map((e, i) =>
+                i === candidates.length - 1 ? `or ${e.name}` : e.name,
+              )
+              .join(", ");
+
+      return NextResponse.json({
+        assistantMessage: `Did you mean ${namedList}? Tell me which one and I'll make the swap.`,
+        updatedPlan: null,
+      });
+    }
+
+    if (intent.kind === "explicit") {
+      const fromExercise = seedExercises.find((e) => e.id === intent.fromExerciseId);
+      const toExercise = seedExercises.find((e) => e.id === intent.toExerciseId);
+
+      if (!toExercise) {
+        return NextResponse.json({
+          assistantMessage: "I couldn't find that exercise in the catalog.",
+          updatedPlan: null,
+        });
+      }
+
+      // Surface a category-mismatch rejection with the actual movement
+      // patterns named, instead of the validator's generic message.
+      if (fromExercise && fromExercise.category !== toExercise.category) {
+        return NextResponse.json({
+          assistantMessage:
+            `${fromExercise.name} is a ${fromExercise.category.replace(/_/g, " ")} movement and ` +
+            `${toExercise.name} is a ${toExercise.category.replace(/_/g, " ")} movement, so ` +
+            `I can't swap them directly. Want a different ${fromExercise.category.replace(/_/g, " ")} option instead?`,
+          updatedPlan: null,
+        });
+      }
+
+      const validation = await validateAdjustment({
+        dayId: intent.dayId,
+        workoutExerciseId: intent.workoutExerciseId,
+        newExerciseId: intent.toExerciseId,
+        sets: null,
+        reps: null,
+        message,
+        user,
+      });
+
+      if (!validation.ok) {
+        return NextResponse.json({
+          assistantMessage: validation.reason,
+          updatedPlan: null,
+        });
+      }
+
+      const newName = `${toExercise.name} (${muscleLabelFor(toExercise.category)})`;
+      const result = await applyExerciseSwap(
+        {
+          dayId: intent.dayId,
+          workoutExerciseId: intent.workoutExerciseId,
+          newExerciseId: intent.toExerciseId,
+          reason: message,
+          newName,
+        },
+        user,
+      );
+
+      const fromName = fromExercise?.name ?? "the exercise";
+      return NextResponse.json({
+        assistantMessage: result
+          ? `Swapped ${fromName} for ${toExercise.name}.`
+          : "I could not safely apply that change to the current plan.",
+        updatedPlan: result ? await getCurrentPlan(user) : null,
+      });
+    }
+
+    // Build a hint string for partial parses so the LLM doesn't free-select
+    // a different exercise than the user named.
+    const pinnedTarget =
+      intent.kind === "to-only"
+        ? seedExercises.find((e) => e.id === intent.toExerciseId)
+        : null;
+    const pinnedSource =
+      intent.kind === "from-only" ? intent : null;
+
+    const intentHint = pinnedTarget
+      ? `\n\nIMPORTANT: The user explicitly named "${pinnedTarget.name}" as the replacement. You MUST set newExerciseId to "${pinnedTarget.id}" and not substitute a different exercise.`
+      : pinnedSource
+        ? `\n\nIMPORTANT: The user explicitly named the exercise to replace. You MUST set dayId to "${pinnedSource.dayId}" and workoutExerciseId to "${pinnedSource.workoutExerciseId}".`
+        : "";
+
     const available = seedExercises.map(e => ({
       id: e.id,
       name: e.name,
@@ -146,6 +250,7 @@ export async function POST(request: Request) {
 Analyze their request, locate the appropriate exercise in their plan, and find a suitable replacement from the available exercises list.
 You can also adjust the sets and reps if the user asks for more/less volume or intensity.
 Only suggest replacements that make sense biomechanically (e.g. swap a squat for another squat) and respect their request.
+If the user names a specific replacement exercise, you MUST use that exact exercise. If the named exercise is a different movement pattern (different category) than the original, set hasAdjustment: false and explain the mismatch in assistantMessage. Do NOT silently substitute a different exercise.
 If coaching knowledge is provided, use it to ground your explanation.`;
 
     const userPrompt = `User request: ${message}
@@ -154,7 +259,7 @@ Current Plan:
 ${JSON.stringify(simplifiedPlan, null, 2)}
 
 Available Exercises to choose from (only use 'id' for newExerciseId):
-${JSON.stringify(available, null, 2)}${ragSection}
+${JSON.stringify(available, null, 2)}${ragSection}${intentHint}
 
 Determine if an adjustment is possible. If so, return hasAdjustment: true and provide the exact dayId, workoutExerciseId (from the Current Plan), and the newExerciseId (from the Available Exercises list).
 Also provide the targetMuscle group for the new exercise, and the updated sets/reps if appropriate.
