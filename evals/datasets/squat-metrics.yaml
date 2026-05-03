@@ -39,7 +39,7 @@
         function normKnee(mean, worst) { return 0.5 * mean + 0.5 * worst; }
         function normHeel(mean, worst) { return 0.5 * mean + 0.5 * worst; }
         function normTorso(mean, worst) {
-          return 0.5 * (1 - clamp01(mean / 30)) + 0.5 * (1 - clamp01(worst / 45));
+          return 0.5 * (1 - clamp01((mean - 30) / 50)) + 0.5 * (1 - clamp01((worst - 35) / 55));
         }
         function normTempo(r) {
           if (r <= 0) return 0;
@@ -86,7 +86,7 @@
         function normKnee(mean, worst) { return 0.5 * mean + 0.5 * worst; }
         function normHeel(mean, worst) { return 0.5 * mean + 0.5 * worst; }
         function normTorso(mean, worst) {
-          return 0.5 * (1 - clamp01(mean / 30)) + 0.5 * (1 - clamp01(worst / 45));
+          return 0.5 * (1 - clamp01((mean - 30) / 50)) + 0.5 * (1 - clamp01((worst - 35) / 55));
         }
         function normTempo(r) {
           if (r <= 0) return 0;
@@ -133,7 +133,7 @@
         function normKnee(mean, worst) { return 0.5 * mean + 0.5 * worst; }
         function normHeel(mean, worst) { return 0.5 * mean + 0.5 * worst; }
         function normTorso(mean, worst) {
-          return 0.5 * (1 - clamp01(mean / 30)) + 0.5 * (1 - clamp01(worst / 45));
+          return 0.5 * (1 - clamp01((mean - 30) / 50)) + 0.5 * (1 - clamp01((worst - 35) / 55));
         }
         function normTempo(r) {
           if (r <= 0) return 0;

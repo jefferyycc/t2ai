@@ -30,6 +30,18 @@ const WASM_BASE_URL =
 let landmarkerPromise: Promise<PoseLandmarker> | null = null;
 
 /**
+ * MediaPipe's PoseLandmarker (running in VIDEO mode) requires strictly
+ * monotonically-increasing timestamps for the entire lifetime of the
+ * landmarker instance. Because we cache the landmarker across analyses, a
+ * second video that restarts at t=0 would otherwise be rejected with
+ * "Packet timestamp mismatch ... Current minimum expected timestamp is N
+ * but received 0". We track the last timestamp we fed into detectForVideo
+ * and clamp upwards so subsequent runs stay monotonic. The frame's real
+ * `timestampMs` (used by the metrics layer) is unaffected.
+ */
+let lastDetectTimestampMs = 0;
+
+/**
  * Lazily creates the PoseLandmarker. Called once per page load; subsequent
  * analyses reuse the warm instance.
  */
@@ -113,7 +125,13 @@ export async function processVideo(
 
     await seekTo(video, t / 1000);
 
-    const result = landmarker.detectForVideo(video, t);
+    // Keep MediaPipe's internal clock monotonic across cached-landmarker
+    // reuse. We store the original `t` on the frame so downstream metrics
+    // still see real-time offsets.
+    const detectTs = Math.max(Math.round(t), lastDetectTimestampMs + 1);
+    lastDetectTimestampMs = detectTs;
+
+    const result = landmarker.detectForVideo(video, detectTs);
     const frame = extractFrameLandmarks(result, t);
     if (frame) frames.push(frame);
 

@@ -119,6 +119,48 @@ export function pickDominantSide(frames: FrameLandmarks[]): Side {
 }
 
 // ---------------------------------------------------------------------------
+// View detection (side vs frontal)
+// ---------------------------------------------------------------------------
+
+export type View = "side" | "frontal";
+
+/**
+ * Classify the camera view as side-on or frontal. We use the ratio of
+ * shoulder width to torso height: in a frontal view the shoulders span 50–
+ * 100% of the torso height, in a true side view they collapse near zero
+ * because one shoulder occludes the other.
+ *
+ * Why this matters: knee-tracking biomechanics differ. In a side view the
+ * knees MUST travel forward over the toes to reach depth, so x-displacement
+ * between knee and ankle is expected and should not be penalised. Frontal
+ * valgus (knees collapsing inward) is what an x-displacement signal really
+ * captures — but only when the camera is in front.
+ */
+export function detectView(frames: FrameLandmarks[]): View {
+  let total = 0;
+  let count = 0;
+  for (const f of frames) {
+    const ls = f.landmarks[POSE_INDEX.LEFT_SHOULDER];
+    const rs = f.landmarks[POSE_INDEX.RIGHT_SHOULDER];
+    const lh = f.landmarks[POSE_INDEX.LEFT_HIP];
+    const rh = f.landmarks[POSE_INDEX.RIGHT_HIP];
+    if (!ls || !rs || !lh || !rh) continue;
+    if (ls.visibility < 0.3 || rs.visibility < 0.3) continue;
+
+    const shoulderWidth = Math.abs(ls.x - rs.x);
+    const torsoHeight = Math.abs(
+      (ls.y + rs.y) / 2 - (lh.y + rh.y) / 2,
+    );
+    if (torsoHeight === 0) continue;
+    total += shoulderWidth / torsoHeight;
+    count++;
+  }
+  if (count === 0) return "side";
+  // Empirically: frontal ≈ 0.5–1.0, side ≈ 0.0–0.25. 0.4 is a safe boundary.
+  return total / count > 0.4 ? "frontal" : "side";
+}
+
+// ---------------------------------------------------------------------------
 // Confidence: fraction of frames with usable joint visibility
 // ---------------------------------------------------------------------------
 
@@ -243,6 +285,7 @@ function durationMs(frames: FrameLandmarks[], a: number, b: number): number {
 function metricsForRep(
   frames: FrameLandmarks[],
   side: Side,
+  view: View,
   phase: Phase,
   repIndex: number,
 ): RepMetrics | null {
@@ -265,13 +308,26 @@ function metricsForRep(
     ? 1 + hipKneeDelta / standingFemur
     : 0;
 
-  // Knee tracking proxy: lateral position of knee vs ankle at bottom.
-  // In a pure side view, |knee.x - ankle.x| should be small. Larger values
-  // mean the camera is catching valgus or knee drift.
-  const kneeTrackingScore =
-    standingFemur > 0
-      ? 1 - Math.min(1, Math.abs(bottomJoints.knee.x - bottomJoints.ankle.x) / standingFemur)
-      : 0;
+  // Knee tracking proxy: view-aware.
+  //
+  //   - Frontal view: |knee.x − ankle.x| reflects valgus/varus (knees caving
+  //     in or flaring out) directly. Smaller is better.
+  //   - Side view: the knee MUST travel forward over the foot to reach depth.
+  //     A textbook deep squat shows ~0.4–0.7 femur-lengths of forward travel,
+  //     which is biomechanically correct, not a fault. We give a "free zone"
+  //     of 0.5 × femur and only penalise excess beyond that — large excess
+  //     (knee shooting way past the toe) suggests collapse forward.
+  let kneeTrackingScore = 0;
+  if (standingFemur > 0) {
+    const horizDelta = Math.abs(bottomJoints.knee.x - bottomJoints.ankle.x);
+    if (view === "side") {
+      const freeZone = 0.5 * standingFemur;
+      const excess = Math.max(0, horizDelta - freeZone);
+      kneeTrackingScore = 1 - Math.min(1, excess / standingFemur);
+    } else {
+      kneeTrackingScore = 1 - Math.min(1, horizDelta / standingFemur);
+    }
+  }
 
   // Heel stability: vertical displacement of heel from start to bottom.
   // Less is better. Normalize by femur length.
@@ -367,11 +423,12 @@ export function analyzeFrames(frames: FrameLandmarks[]): AnalyzeFramesResult {
   }
 
   const side = pickDominantSide(frames);
+  const view = detectView(frames);
   const phases = detectReps(frames, side);
 
   const reps: RepMetrics[] = [];
   phases.forEach((phase, i) => {
-    const m = metricsForRep(frames, side, phase, i + 1);
+    const m = metricsForRep(frames, side, view, phase, i + 1);
     if (m) reps.push(m);
   });
 

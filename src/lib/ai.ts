@@ -194,7 +194,7 @@ function parseAvailableExerciseIds(prompt: string) {
 function getFixtureWorkoutPlan(prompt: string) {
   const dayCount = Number.parseInt(prompt.match(/Create a\s+(\d+)/)?.[1] ?? "3", 10);
   const exerciseIds = parseAvailableExerciseIds(prompt);
-  const fallbackIds = ["squat", "push-up", "chest-supported-row", "hip-thrust", "plank"];
+  const fallbackIds = ["goblet-squat", "push-up", "chest-supported-row", "hip-thrust", "plank"];
   const ids = exerciseIds.length > 0 ? exerciseIds : fallbackIds;
 
   return {
