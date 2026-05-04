@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DEMO_SESSION_COOKIE } from "@/lib/auth";
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const response = NextResponse.next();
 
   if (!request.cookies.has(DEMO_SESSION_COOKIE)) {
