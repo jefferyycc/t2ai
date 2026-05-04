@@ -23,10 +23,11 @@ flowchart TD
     U["User<br/>(browser)"] --> EXP["Layer 01 — Experience<br/>Next.js dashboard, onboarding,<br/>swap UI, squat upload"]
     EXP --> APP["Layer 02 — Application<br/>/api/profile, /api/plan/{generate,adjust}<br/>/api/exercises/swap, /api/readiness<br/>/api/squat/analyze, /api/debug/rag"]
 
-    APP --> DEC["Layer 03 — Decision (deterministic)<br/>readiness · planner · substitutions<br/>squat metrics + scoring"]
+    AUTH["auth.ts<br/>Supabase bearer · demo cookie<br/>(cross-cutting)"] --> APP
+    APP --> DEC["Layer 03 — Decision (deterministic)<br/>readiness · planner · substitutions<br/>squat metrics + scoring · parse-swap-intent"]
     APP --> AI["Layer 04 — AI Runtime<br/>ai.ts (chat / structured)<br/>embeddings.ts"]
     APP --> KN["Layer 05 — Knowledge<br/>knowledge-store.ts (pgvector)<br/>planning-knowledge.ts (fallback)"]
-    APP --> DATA["Layer 06 — Data<br/>Supabase Postgres + RLS<br/>Supabase Storage (squat videos)"]
+    APP --> DATA["Layer 06 — Data<br/>db.ts persistence facade<br/>Supabase Postgres + RLS · in-memory fallback (dual-mode)"]
 
     AI -->|env-routed| OLL["Ollama (local)"]
     AI -->|env-routed| FIX["Fixture (deterministic)"]
@@ -40,7 +41,7 @@ flowchart TD
     EXP -. browser-side .-> POSE["MediaPipe Pose Landmarker<br/>(landmarks extracted in browser)"]
     POSE --> APP
 
-    EVAL["Promptfoo eval suite<br/>35 cases · 6 datasets"] -. fixture provider .-> APP
+    EVAL["Promptfoo eval suite<br/>34 cases · 6 datasets"] -. fixture provider .-> APP
 ```
 
 Notes on what is intentionally absent: no mobile app (web-only, responsive), no Inngest async jobs, no OpenTelemetry/Langfuse runtime tracing. Earlier design docs anticipated these; the shipped scope is tighter.
@@ -188,10 +189,10 @@ Goal: demonstrate multimodal AI integration with a real analysis pipeline. This 
 ### Architecture layers touched
 
 - Layer 01 (Experience): Upload UI, results view with score badges
-- Layer 02 (Application): /api/video/analyze
+- Layer 02 (Application): /api/squat/analyze
 - Layer 03 (Decision): Rep metric computation, scoring rules
 - Layer 04 (AI Runtime): LLM summarizes structured metrics into cues
-- Layer 05 (Data): Supabase Storage for videos, pose_runs and rep_metrics tables
+- Layer 06 (Data): Supabase Postgres squat_runs table; videos stay client-side, only landmarks POSTed
 
 ---
 

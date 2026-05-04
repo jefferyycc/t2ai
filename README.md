@@ -12,7 +12,7 @@ Status: milestones 1–4 shipped, milestone 5 (portfolio polish) in progress. Se
 - **Multimodal pipeline** — browser-side MediaPipe Pose Landmarker extracts squat landmarks; pure-TS metric/scoring code produces a 0–100 score; the LLM only translates the numbers into 1–3 short cues.
 - **Adaptation loop** — recent squat sessions feed back into plan generation as a low-weight context note, so depth or knee-tracking issues steer the next plan without overriding safety rules.
 - **Provider routing** — Ollama (local), fixture (deterministic), and Gemini (cloud) selected by env, never silently. No hidden cloud calls.
-- **LLM evaluation** — Promptfoo dataset of 35 cases covering onboarding extraction, plan generation, swap safety, readiness gating, RAG retrieval, and squat scoring.
+- **LLM evaluation** — Promptfoo dataset of 34 cases covering onboarding extraction, plan generation, swap safety, readiness gating, RAG retrieval, and squat scoring.
 - **Production patterns** — Supabase Postgres with RLS, dual-mode in-memory fallback, auth context plumbed through every API route.
 
 ## Architecture at a glance
@@ -107,7 +107,7 @@ Onboarding chat is on the home page. Once you complete onboarding, the dashboard
 
 ## Evaluation suite
 
-Promptfoo drives 35 test cases across six datasets:
+Promptfoo drives 34 test cases across six datasets:
 
 | Dataset | Cases | What it covers |
 |---|---|---|

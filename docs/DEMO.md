@@ -124,7 +124,7 @@ curl 'http://localhost:3000/api/debug/rag?q=shoulder%20limitation%20hypertrophy'
 # Terminal 1 — dev server in fixture mode
 AI_PROVIDER=fixture npm run dev
 
-# Terminal 2 — run all 35 cases
+# Terminal 2 — run all 34 cases
 npm run eval
 npm run eval:view   # opens the HTML report
 ```
