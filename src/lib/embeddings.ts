@@ -92,11 +92,3 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   return getOllamaEmbedding(text);
 }
 
-export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
-  // Process sequentially to avoid overwhelming Ollama.
-  const results: number[][] = [];
-  for (const text of texts) {
-    results.push(await generateEmbedding(text));
-  }
-  return results;
-}

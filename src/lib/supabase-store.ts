@@ -265,28 +265,6 @@ export async function saveCompletedProfileAndPlan(
   });
 }
 
-export async function updateTrainingPlan(user: UserContext, plan: WorkoutPlan) {
-  if (!isSupabasePersistenceConfigured(user)) return;
-
-  const rows = await requestSupabase<PlanRow[]>(
-    user,
-    `training_plans?id=eq.${encodeFilter(plan.id)}&user_id=eq.${encodeFilter(
-      user.id,
-    )}`,
-    {
-      method: "PATCH",
-      headers: {
-        Prefer: "return=representation",
-      },
-      body: JSON.stringify(toPlanRow(plan)),
-    },
-  );
-
-  if (rows.length === 0) {
-    throw new SupabasePersistenceError("The training plan no longer exists.");
-  }
-}
-
 export async function applyPlanUpdate(
   user: UserContext,
   plan: WorkoutPlan,
@@ -300,18 +278,6 @@ export async function applyPlanUpdate(
       plan_payload: toPlanRow(plan),
       update_payload: toPlanUpdateRow(user, update),
     }),
-  });
-}
-
-export async function insertPlanUpdate(user: UserContext, update: PlanUpdate) {
-  if (!isSupabasePersistenceConfigured(user)) return;
-
-  await requestSupabase<PlanUpdateRow[]>(user, "plan_adjustments", {
-    method: "POST",
-    headers: {
-      Prefer: "return=representation",
-    },
-    body: JSON.stringify(toPlanUpdateRow(user, update)),
   });
 }
 

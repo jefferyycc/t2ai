@@ -207,17 +207,6 @@ export type SquatAggregateMetrics = {
   meanTempoRatio: number;
 };
 
-export type SquatAnalysis = {
-  source: "upload" | "webcam";
-  reps: RepMetrics[];
-  aggregate: SquatAggregateMetrics;
-  score: number;
-  tier: SquatScoreTier;
-  /** 0..1 — how confident we are in the metrics, based on landmark visibility. */
-  confidence: number;
-  durationSeconds: number;
-};
-
 export type SquatCue = {
   metric: keyof SquatAggregateMetrics | "overall";
   message: string;
